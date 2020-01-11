@@ -23,12 +23,14 @@ dependencies {
 
     implementation wpi.deps.wpilib()
     nativeZip wpi.deps.wpilibJni(wpi.platforms.roborio)
-    nativeDesktopZip wpi.deps.wpilibJni(wpi.platforms.desktop)
 
+    implementation "com.revrobotics.frc:SparkMax-java:1.5.1"
+    nativeZip "com.revrobotics.frc:SparkMax-driver:1.5.1:linuxathena@zip"
 
-    implementation wpi.deps.vendor.java()
-    nativeZip wpi.deps.vendor.jni(wpi.platforms.roborio)
-    nativeDesktopZip wpi.deps.vendor.jni(wpi.platforms.desktop)
+    implementation "com.ctre.phoenix:api-java:5.17.3"
+    nativeZip "com.ctre.phoenix:cci:5.17.3:linuxathena@zip"
+    nativeZip "com.ctre.phoenix:diagnostics:5.17.3:linuxathena@zip"
+    nativeZip "com.ctre.phoenix:core:5.17.3:linuxathena@zip"
 }
 
 snakeskin {
@@ -37,6 +39,7 @@ snakeskin {
         core()
         frc()
         ctre()
+        rev()
     }
 }
 
