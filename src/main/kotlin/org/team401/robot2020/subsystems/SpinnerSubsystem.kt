@@ -8,8 +8,11 @@ import org.snakeskin.measure.*
 import org.snakeskin.event.Events
 import com.revrobotics.ColorSensorV3
 import edu.wpi.first.wpilibj.I2C
-import org.team401.robot2020.control.spinner.SpinnerAlgorithm
-
+import org.team401.robot2020.control.spinner.*
+import org.team401.robot2020.config.SpinnerColors.redTarget
+import org.team401.robot2020.config.SpinnerColors.blueTarget
+import org.team401.robot2020.config.SpinnerColors.greenTarget
+import org.team401.robot2020.config.SpinnerColors.yellowTarget
 
 object SpinnerSubsystem : Subsystem() {
     private val wheelSpark = Hardware.createBrushlessSparkMax(1)
@@ -19,26 +22,22 @@ object SpinnerSubsystem : Subsystem() {
     private val colorSensor = ColorSensorV3(I2C.Port.kOnboard)
     private val colorMatcher = ColorMatch()
 
-    private val wheelRadius = 2.0.Inches
+    private val wheelRadius = 1.0.Inches
     private val spinnerRadius = 32.0.Inches
-
-    private val blueTarget = ColorMatch.makeColor(0.0, 0.0, 255.0)
-    private val greenTarget = ColorMatch.makeColor(0.0, 255.0, 0.0)
-    private val redTarget = ColorMatch.makeColor(255.0, 0.0, 0.0)
-    private val yellowTarget = ColorMatch.makeColor(255.0, 255.0, 0.0)
 
     private val desiredColor = SpinnerColor.Yellow
     private val desiredRotations = 4.25.Revolutions
 
     private val accel = 100.0.RevolutionsPerMinutePerSecond.toRevolutionsPerSecondPerSecond().value
     private var power = 0.0
-    private const val maxPower = 0.5
 
+    private const val maxPower = 0.1
 
     enum class States {
         Position,
         Rotation,
-        Disabled
+        Disabled,
+        ManualControl
     }
 
     enum class SpinnerColor {
@@ -49,33 +48,25 @@ object SpinnerSubsystem : Subsystem() {
         Unknown
     }
 
-    private val SpinnerMachine : StateMachine<States> = stateMachine() {
+    val SpinnerMachine : StateMachine<States> = stateMachine() {
         state(States.Position) {
             var wheelRotation = 0.0
             var startTime = 0.0.Seconds
 
             entry {
                 val detectedColor = colorSensor.color
-                var currentColor = SpinnerColor.Unknown
+                val currentColor: SpinnerColor
                 val matchResult = colorMatcher.matchClosestColor(detectedColor)
 
-                if (matchResult.color == blueTarget) {
-                    currentColor = SpinnerColor.Blue
-                } else if (matchResult.color == redTarget) {
-                    currentColor = SpinnerColor.Red
-                } else if (matchResult.color ==  greenTarget) {
-                    currentColor = SpinnerColor.Green
-                } else {
-                    currentColor = SpinnerColor.Yellow
-                }
+                currentColor = SpinnerAlgorithms.matchColor(matchResult)
 
-                val spinnerDesiredDegrees = SpinnerAlgorithm.calculateSpinnerRotation(currentColor, desiredColor)
+                val spinnerDesiredDegrees = SpinnerAlgorithms.calculateSpinnerRotation(currentColor, desiredColor)
 
                 wheelRotation = ((spinnerRadius.value / wheelRadius.value) * spinnerDesiredDegrees.value) / 360.0.Degrees.value
                 wheelSpark.setAngularPosition(0.0.Revolutions)
                 startTime = 0.0.Seconds
 
-                pusherPiston.set(false)
+                pusherPiston.set(true)
 
             }
 
@@ -123,6 +114,17 @@ object SpinnerSubsystem : Subsystem() {
                 if (wheelSpark.getAngularPosition().value >= wheelRotation.value) {
                     power = 0.0
                 }
+                wheelSpark.setPercentOutput(power)
+            }
+        }
+
+        state(States.ManualControl) {
+            entry {
+                pusherPiston.set(true)
+            }
+
+            action {
+                power = maxPower
                 wheelSpark.setPercentOutput(power)
             }
         }

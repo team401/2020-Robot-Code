@@ -1,10 +1,12 @@
 package org.team401.robot2020.control.spinner
 
+import com.revrobotics.ColorMatchResult
 import org.snakeskin.measure.Degrees
 import org.snakeskin.measure.distance.angular.AngularDistanceMeasureDegrees
 import org.team401.robot2020.subsystems.SpinnerSubsystem.SpinnerColor
+import org.team401.robot2020.config.*
 
-object SpinnerAlgorithm {
+object SpinnerAlgorithms {
     private val degreesPerSlice = 45.0.Degrees
 
     fun calculateSpinnerRotation(currentColor: SpinnerColor, desiredColor: SpinnerColor): AngularDistanceMeasureDegrees {
@@ -32,6 +34,16 @@ object SpinnerAlgorithm {
             SpinnerColor.Yellow -> 4
             else -> -1
         }
+    }
 
+    fun matchColor(matchResult: ColorMatchResult): SpinnerColor {
+
+        return when(matchResult.color) {
+            SpinnerColors.blueTarget -> SpinnerColor.Blue
+            SpinnerColors.redTarget -> SpinnerColor.Red
+            SpinnerColors.greenTarget -> SpinnerColor.Green
+            SpinnerColors.yellowTarget -> SpinnerColor.Yellow
+            else -> SpinnerColor.Unknown
+        }
     }
 }
