@@ -3,7 +3,6 @@ import org.snakeskin.component.IDifferentialDrivetrain
 import org.snakeskin.component.SmartGearbox
 import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
-import org.snakeskin.hid.channel.AxisChannel
 import org.snakeskin.utility.CheesyDriveController
 import org.team401.robot2020.HumanControllers
 import org.team401.robot2020.config.Geometry

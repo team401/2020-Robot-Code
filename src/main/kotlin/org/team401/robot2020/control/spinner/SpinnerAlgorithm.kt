@@ -2,6 +2,7 @@ package org.team401.robot2020.control.spinner
 
 import org.snakeskin.measure.Degrees
 import org.snakeskin.measure.distance.angular.AngularDistanceMeasureDegrees
+import org.team401.robot2020.subsystems.SpinnerSubsystem.SpinnerColor
 
 object SpinnerAlgorithm {
     private val degreesPerSlice = 45.0.Degrees
@@ -29,12 +30,8 @@ object SpinnerAlgorithm {
             SpinnerColor.Green -> 2
             SpinnerColor.Blue -> 3
             SpinnerColor.Yellow -> 4
+            else -> -1
         }
 
     }
-
 }
-
- fun main() {
-     println(SpinnerAlgorithm.calculateSpinnerRotation(SpinnerColor.Red, SpinnerColor.Red))
- }
