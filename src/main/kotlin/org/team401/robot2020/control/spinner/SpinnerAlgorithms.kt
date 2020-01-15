@@ -39,10 +39,10 @@ object SpinnerAlgorithms {
     fun matchColor(matchResult: ColorMatchResult): SpinnerColor {
 
         return when(matchResult.color) {
-            SpinnerColors.blueTarget -> SpinnerColor.Blue
-            SpinnerColors.redTarget -> SpinnerColor.Red
-            SpinnerColors.greenTarget -> SpinnerColor.Green
-            SpinnerColors.yellowTarget -> SpinnerColor.Yellow
+            SpinnerParameters.blueTarget -> SpinnerColor.Blue
+            SpinnerParameters.redTarget -> SpinnerColor.Red
+            SpinnerParameters.greenTarget -> SpinnerColor.Green
+            SpinnerParameters.yellowTarget -> SpinnerColor.Yellow
             else -> SpinnerColor.Unknown
         }
     }
