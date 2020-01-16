@@ -1,8 +1,7 @@
 package org.team401.robot2020.subsystems
 
+import com.revrobotics.CANSparkMax
 import org.snakeskin.component.SmartGearbox
-import org.snakeskin.component.dsl.createBrushlessSparkMax
-import org.snakeskin.component.dsl.useHardware
 import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
 import org.snakeskin.measure.*
@@ -13,7 +12,7 @@ object FlywheelSubsystem : Subsystem() {
 
     private val gearbox = SmartGearbox(leftSpark, rightSpark)
 
-    private val targetVelocity = 3750.0.RevolutionsPerMinute
+    private val targetVelocity = 2000.0.RevolutionsPerMinute
     private val ks = 0.23311
     private val kv = 0.14613
     private val accel = 2000.0.RevolutionsPerMinutePerSecond.toRevolutionsPerSecondPerSecond().value
@@ -62,7 +61,7 @@ object FlywheelSubsystem : Subsystem() {
                 power = 0.0
             }
 
-            rtAction { timestamp, _ ->
+            action {
                 gearbox.setPercentOutput(power)
                 if (gearbox.getAngularVelocity() >= 0.001.RevolutionsPerSecond) {
                     println(gearbox.getOutputVoltage())
@@ -72,7 +71,7 @@ object FlywheelSubsystem : Subsystem() {
             }
         }
         state(States.MeasureKv) {
-            rtAction { timestamp, _ ->
+            action {
                 gearbox.setPercentOutput(1.0)
                 println((gearbox.getOutputVoltage() - ks) / gearbox.getAngularVelocity().value)
             }
@@ -82,10 +81,12 @@ object FlywheelSubsystem : Subsystem() {
     override fun setup() {
         useHardware(leftSpark) {
             inverted = true
+            idleMode = CANSparkMax.IdleMode.kCoast
         }
 
         useHardware(rightSpark) {
             inverted = false
+            idleMode = CANSparkMax.IdleMode.kCoast
         }
 
         on(Events.TELEOP_ENABLED) {
