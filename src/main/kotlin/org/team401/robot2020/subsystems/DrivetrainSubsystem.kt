@@ -21,6 +21,8 @@ import org.team401.taxis.diffdrive.component.IModeledDifferentialDrivetrain
 import org.team401.taxis.diffdrive.component.impl.YawHeadingSource
 import org.team401.taxis.diffdrive.component.provider.IHeadingProvider
 import org.team401.taxis.diffdrive.control.DifferentialDrivetrainModel
+import org.team401.taxis.diffdrive.control.DrivetrainPathManager
+import org.team401.taxis.diffdrive.control.NonlinearFeedbackPathController
 import org.team401.taxis.diffdrive.odometry.DifferentialDriveState
 import org.team401.taxis.geometry.Pose2d
 
@@ -40,6 +42,12 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
 
     private val leftPid = PIDController(DrivetrainDynamics.driveLeftKp, 0.0, 0.0)
     private val rightPid = PIDController(DrivetrainDynamics.driveRightKp, 0.0, 0.0)
+
+    val pathManager = DrivetrainPathManager(
+        model,
+        NonlinearFeedbackPathController(2.0, .7),
+        2.0, .25, 5.0.Degrees.toRadians().value
+    )
 
     override val yawSensor = Hardware.createCANPigeonIMU(HardwareMap.DrivetrainMap.pigeonId)
     override val headingSource = YawHeadingSource(yawSensor)
@@ -71,7 +79,8 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
     private val cheesyDriveController = CheesyDriveController()
 
     enum class States {
-        OperatorControl
+        OperatorControl,
+        TrajectoryFollowing
     }
 
     val driveMachine: StateMachine<States> = stateMachine {
@@ -90,6 +99,32 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
                 val leftOut = leftModelOpenLoop.calculate(leftVel.value) / 12.0
                 val rightOut = rightModelOpenLoop.calculate(rightVel.value) / 12.0
                 tank(leftOut, rightOut)
+            }
+        }
+
+        state(States.TrajectoryFollowing) {
+            entry {
+                configForAutoDriving()
+            }
+
+            rtAction { timestamp, _ ->
+                val output = pathManager.update(timestamp.value, driveState.getFieldToVehicle(timestamp))
+
+                val leftVelocity = left.getAngularVelocity().toRadiansPerSecond()
+                val rightVelocity = right.getAngularVelocity().toRadiansPerSecond()
+
+                val leftFf = output.left_feedforward_voltage / 12.0
+                val rightFf = output.right_feedforward_voltage / 12.0
+                val leftFeedback = leftPid.calculate(leftVelocity.value, output.left_velocity) / 12.0
+                val rightFeedback = rightPid.calculate(rightVelocity.value, output.right_velocity) / 12.0
+
+                tank(leftFf + leftFeedback, rightFf + rightFeedback)
+            }
+        }
+
+        disabled {
+            action {
+                stop()
             }
         }
     }

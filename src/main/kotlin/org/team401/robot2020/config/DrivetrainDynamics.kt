@@ -21,6 +21,6 @@ object DrivetrainDynamics: DifferentialDrivetrainDynamicsParameters {
 
     val driveSpeedIdeal = 15.7.FeetPerSecond
 
-    val driveLeftKp = 1.62
-    val driveRightKp = 1.53
+    val driveLeftKp = .25
+    val driveRightKp = .25
 }
