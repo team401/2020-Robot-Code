@@ -3,6 +3,7 @@ package org.team401.robot2020
 import org.snakeskin.dsl.*
 import org.snakeskin.hid.channel.AxisChannel
 import org.snakeskin.hid.channel.ButtonChannel
+import org.snakeskin.logic.scalars.LowPassScalar
 import org.team401.robot2020.subsystems.SpinnerSubsystem
 
 object HumanControllers {

@@ -7,6 +7,7 @@
 # IntelliJ
 .idea/*
 !.idea/runConfigurations
+!.idea/codeInsightSettings.xml
 out/
 *.iml
 *.iws

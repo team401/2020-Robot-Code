@@ -33,10 +33,12 @@ dependencies {
     nativeZip "com.ctre.phoenix:core:5.17.3:linuxathena@zip"
 
     implementation "com.revrobotics.frc:ColorSensorV3-java:1.0.1"
+
+    implementation "org.team401:Taxis:1.4"
 }
 
 snakeskin {
-    version = "3.0beta4"
+    version = "3.0beta5"
     modules {
         core()
         frc()

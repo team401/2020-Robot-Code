@@ -2,7 +2,6 @@ package org.team401.robot2020.subsystems
 
 import com.revrobotics.CANSparkMax
 import com.revrobotics.ColorMatch
-import edu.wpi.first.wpilibj.Solenoid
 import org.snakeskin.dsl.*
 import org.snakeskin.measure.*
 import org.snakeskin.event.Events
@@ -11,8 +10,6 @@ import edu.wpi.first.wpilibj.I2C
 import org.snakeskin.component.SmartGearbox
 import org.snakeskin.measure.acceleration.angular.AngularAccelerationMeasureRevolutionsPerSecondPerSecond
 import org.snakeskin.measure.distance.angular.AngularDistanceMeasureRevolutions
-import org.snakeskin.measure.velocity.angular.AngularVelocityMeasureRevolutionsPerSecond
-import org.team401.robot2020.config.Geometry.DrivetrainGeometry.wheelRadius
 import org.team401.robot2020.config.SpinnerParameters
 import org.team401.robot2020.control.spinner.*
 import org.team401.robot2020.config.SpinnerParameters.redTarget
