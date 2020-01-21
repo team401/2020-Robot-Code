@@ -22,8 +22,8 @@ object DriveTrajectories {
             Pose2d(18.0 * 12.0, 3.0 * 12.0, Rotation2d.identity())
         ),
         listOf<TimingConstraint<Pose2dWithCurvature>>(CentripetalAccelerationConstraint(110.0)),
-        6.0 * 12.0,
-        6.0 * 12.0,
+        12.0 * 12.0,
+        12.0 * 12.0,
         9.0
     )
 }

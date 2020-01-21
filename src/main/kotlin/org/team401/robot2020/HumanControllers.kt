@@ -4,6 +4,7 @@ import org.snakeskin.dsl.*
 import org.snakeskin.hid.channel.AxisChannel
 import org.snakeskin.hid.channel.ButtonChannel
 import org.snakeskin.logic.scalars.LowPassScalar
+import org.team401.robot2020.subsystems.HangingSubsystem
 import org.team401.robot2020.subsystems.SpinnerSubsystem
 
 object HumanControllers {
@@ -24,23 +25,23 @@ object HumanControllers {
     }
 
     val gamepad = HumanControls.f310(2) {
-        whenButton(Buttons.A) {
+        whenButton(Buttons.Y) {
             pressed {
-                SpinnerSubsystem.SpinnerMachine.setState(SpinnerSubsystem.States.Position)
+                HangingSubsystem.HangingMachine.setState(HangingSubsystem.States.Forward)
             }
 
             released {
-                SpinnerSubsystem.SpinnerMachine.setState(SpinnerSubsystem.States.Disabled)
+                HangingSubsystem.HangingMachine.setState(HangingSubsystem.States.Disabled)
+            }
+        }
+
+        whenButton(Buttons.A) {
+            pressed {
+                HangingSubsystem.HangingMachine.setState(HangingSubsystem.States.Reversed)
             }
 
-            whenButton(Buttons.B) {
-                pressed {
-                    SpinnerSubsystem.SpinnerMachine.setState(SpinnerSubsystem.States.Rotation)
-                }
-
-                released {
-                    SpinnerSubsystem.SpinnerMachine.setState(SpinnerSubsystem.States.Disabled)
-                }
+            released {
+                HangingSubsystem.HangingMachine.setState(HangingSubsystem.States.Disabled)
             }
         }
     }

@@ -17,6 +17,7 @@ import org.team401.robot2020.HumanControllers
 import org.team401.robot2020.config.DrivetrainGeometry
 import org.team401.robot2020.config.DrivetrainDynamics
 import org.team401.robot2020.config.HardwareMap
+import org.team401.robot2020.control.robot.RobotState
 import org.team401.taxis.diffdrive.component.IModeledDifferentialDrivetrain
 import org.team401.taxis.diffdrive.component.impl.YawHeadingSource
 import org.team401.taxis.diffdrive.component.provider.IHeadingProvider
@@ -52,7 +53,7 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
     override val yawSensor = Hardware.createCANPigeonIMU(HardwareMap.DrivetrainMap.pigeonId)
     override val headingSource = YawHeadingSource(yawSensor)
 
-    override val driveState = DifferentialDriveState(kinematics = model.driveKinematicsModel)
+    override val driveState = RobotState
 
     private val leftMaster = Hardware.createTalonFX(HardwareMap.DrivetrainMap.leftFrontFalconId)
     private val leftSlave = Hardware.createTalonFX(HardwareMap.DrivetrainMap.leftRearFalconId)
@@ -131,7 +132,7 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
 
     override fun action() {
         //println("L: ${left.getAngularPosition()}  R: ${right.getAngularPosition()}")
-        println(driveState.getLatestFieldToVehicle().value)
+        //println(driveState.getLatestFieldToVehicle().value)
     }
 
     private fun configForStartup() {

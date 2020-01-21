@@ -13,4 +13,11 @@ object HardwareMap {
         const val rightEncoderA = 2
         const val rightEncoderB = 3
     }
+
+    object TurretMap {
+        const val turretRotationId = 2
+
+        const val turretEncoderA = 4
+        const val turretEncoderB = 5
+    }
 }
