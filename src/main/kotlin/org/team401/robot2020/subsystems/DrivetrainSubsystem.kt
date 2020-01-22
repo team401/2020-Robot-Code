@@ -9,6 +9,7 @@ import org.snakeskin.component.Gearbox
 import org.snakeskin.component.SmartGearbox
 import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
+import org.snakeskin.logic.scalars.IScalar
 import org.snakeskin.logic.scalars.LowPassScalar
 import org.snakeskin.measure.*
 import org.snakeskin.measure.velocity.angular.AngularVelocityMeasureRadiansPerSecond
@@ -18,6 +19,7 @@ import org.team401.robot2020.config.DrivetrainGeometry
 import org.team401.robot2020.config.DrivetrainDynamics
 import org.team401.robot2020.config.HardwareMap
 import org.team401.robot2020.control.robot.RobotState
+import org.team401.robot2020.control.robot.TurretLimelight
 import org.team401.taxis.diffdrive.component.IModeledDifferentialDrivetrain
 import org.team401.taxis.diffdrive.component.impl.YawHeadingSource
 import org.team401.taxis.diffdrive.component.provider.IHeadingProvider
@@ -77,7 +79,8 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
     override val left = Gearbox(leftEncoder, leftMaster, leftSlave)
     override val right = Gearbox(rightEncoder, rightMaster, rightSlave)
 
-    private val cheesyDriveController = CheesyDriveController()
+    private val cheesyDriveController = CheesyDriveController(DrivetrainDynamics.CheesyDriveParameters)
+
 
     enum class States {
         OperatorControl,
@@ -94,7 +97,7 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
             action {
                 val trans = HumanControllers.driveTranslationChannel.read()
                 val rot = HumanControllers.driveRotationChannel.read()
-                val output = cheesyDriveController.update(trans, rot, true, HumanControllers.driveQuickTurnChannel.read())
+                val output = cheesyDriveController.update(trans, rot, false, HumanControllers.driveQuickTurnChannel.read())
                 val leftVel = output.left._ul * (DrivetrainDynamics.driveSpeedIdeal.toAngularVelocity(geometry.wheelRadius))
                 val rightVel = output.right._ul * (DrivetrainDynamics.driveSpeedIdeal.toAngularVelocity(geometry.wheelRadius))
                 val leftOut = leftModelOpenLoop.calculate(leftVel.value) / 12.0

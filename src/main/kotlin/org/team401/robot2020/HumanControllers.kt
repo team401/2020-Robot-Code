@@ -6,6 +6,7 @@ import org.snakeskin.hid.channel.ButtonChannel
 import org.snakeskin.logic.scalars.LowPassScalar
 import org.team401.robot2020.subsystems.HangingSubsystem
 import org.team401.robot2020.subsystems.SpinnerSubsystem
+import org.team401.robot2020.subsystems.TurretSubsystem
 
 object HumanControllers {
     val driveTranslationChannel = AxisChannel()
@@ -17,6 +18,18 @@ object HumanControllers {
         invertAxis(Axes.Pitch)
         bindAxis(Axes.Pitch, driveTranslationChannel)
         bindButton(Buttons.Trigger, driveShiftChannel)
+
+        whenButton(Buttons.StickLeft) {
+            pressed {
+                TurretSubsystem.targetAngle = 0.0
+            }
+        }
+
+        whenButton(Buttons.StickRight) {
+            pressed {
+                TurretSubsystem.targetAngle = Math.PI
+            }
+        }
     }
 
     val rightStick = HumanControls.t16000m(1) {
