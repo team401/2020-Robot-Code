@@ -20,4 +20,11 @@ object HardwareMap {
         const val turretEncoderA = 4
         const val turretEncoderB = 5
     }
+
+    object BallMap {
+        const val feederId = 3
+
+        const val bottomGate = 6
+        const val topGate = 7
+    }
 }
