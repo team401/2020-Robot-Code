@@ -2,11 +2,13 @@ package org.team401.robot2020
 
 import org.snakeskin.auto.AutoManager
 import org.snakeskin.dsl.*
+import org.snakeskin.init.InitManager
 import org.snakeskin.measure.Inches
 import org.snakeskin.measure.Seconds
 import org.snakeskin.measure._s
 import org.snakeskin.registry.RealTimeTasks
 import org.snakeskin.rt.RealTimeTask
+import org.snakeskin.runtime.SnakeskinPlatform
 import org.snakeskin.runtime.SnakeskinRuntime
 import org.team401.robot2020.auto.InfiniteRechargeAuto
 import org.team401.robot2020.control.robot.RobotState
@@ -25,8 +27,9 @@ fun setup() {
     SnakeskinRuntime.createRealTimeExecutor(0.01._s)
     Controllers.add(HumanControllers.leftStick, HumanControllers.rightStick)
     Subsystems.add(DrivetrainSubsystem)
-    Subsystems.add(TurretSubsystem)
-    RealTimeTasks.add(OdometryTracker(DrivetrainSubsystem), TurretUpdater)
+    //Subsystems.add(TurretSubsystem)
+    RealTimeTasks.add(OdometryTracker(DrivetrainSubsystem))
+    //RealTimeTasks.add(TurretUpdater)
 
     TurretLimelight.start()
 }

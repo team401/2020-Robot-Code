@@ -7,6 +7,8 @@ import edu.wpi.first.wpilibj.controller.PIDController
 import edu.wpi.first.wpilibj.controller.SimpleMotorFeedforward
 import org.snakeskin.component.Gearbox
 import org.snakeskin.component.SmartGearbox
+import org.snakeskin.component.impl.NullPigeonImuDevice
+import org.snakeskin.component.impl.NullTalonFxDevice
 import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
 import org.snakeskin.logic.scalars.IScalar
@@ -43,8 +45,8 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
         DrivetrainDynamics.rightKv
     )
 
-    private val leftPid = PIDController(DrivetrainDynamics.driveLeftKp, 0.0, 0.0)
-    private val rightPid = PIDController(DrivetrainDynamics.driveRightKp, 0.0, 0.0)
+    private val leftPid by lazy { PIDController(DrivetrainDynamics.driveLeftKp, 0.0, 0.0) }
+    private val rightPid by lazy { PIDController(DrivetrainDynamics.driveRightKp, 0.0, 0.0) }
 
     val pathManager = DrivetrainPathManager(
         model,
@@ -52,28 +54,30 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
         2.0, .25, 5.0.Degrees.toRadians().value
     )
 
-    override val yawSensor = Hardware.createCANPigeonIMU(HardwareMap.DrivetrainMap.pigeonId)
+    override val yawSensor = Hardware.createCANPigeonIMU(HardwareMap.DrivetrainMap.pigeonId, mockProducer = NullPigeonImuDevice.producer)
     override val headingSource = YawHeadingSource(yawSensor)
 
     override val driveState = RobotState
 
-    private val leftMaster = Hardware.createTalonFX(HardwareMap.DrivetrainMap.leftFrontFalconId)
-    private val leftSlave = Hardware.createTalonFX(HardwareMap.DrivetrainMap.leftRearFalconId)
-    private val rightMaster = Hardware.createTalonFX(HardwareMap.DrivetrainMap.rightFrontFaconId)
-    private val rightSlave = Hardware.createTalonFX(HardwareMap.DrivetrainMap.rightRearFalconId)
+    private val leftMaster = Hardware.createTalonFX(HardwareMap.DrivetrainMap.leftFrontFalconId, mockProducer = NullTalonFxDevice.producer)
+    private val leftSlave = Hardware.createTalonFX(HardwareMap.DrivetrainMap.leftRearFalconId, mockProducer = NullTalonFxDevice.producer)
+    private val rightMaster = Hardware.createTalonFX(HardwareMap.DrivetrainMap.rightFrontFaconId, mockProducer = NullTalonFxDevice.producer)
+    private val rightSlave = Hardware.createTalonFX(HardwareMap.DrivetrainMap.rightRearFalconId, mockProducer = NullTalonFxDevice.producer)
 
     private val leftEncoder = Hardware.createDIOEncoder(
         HardwareMap.DrivetrainMap.leftEncoderA,
         HardwareMap.DrivetrainMap.leftEncoderB,
         8192.0,
-        false
+        false,
+        halMock = true
     )
 
     private val rightEncoder = Hardware.createDIOEncoder(
         HardwareMap.DrivetrainMap.rightEncoderA,
         HardwareMap.DrivetrainMap.rightEncoderB,
         8192.0,
-        true
+        true,
+        halMock = true
     )
 
     override val left = Gearbox(leftEncoder, leftMaster, leftSlave)

@@ -23,6 +23,7 @@ dependencies {
 
     implementation wpi.deps.wpilib()
     nativeZip wpi.deps.wpilibJni(wpi.platforms.roborio)
+    nativeDesktopZip wpi.deps.wpilibJni(wpi.platforms.desktop)
 
     implementation "com.revrobotics.frc:SparkMax-java:1.5.1"
     nativeZip "com.revrobotics.frc:SparkMax-driver:1.5.1:linuxathena@zip"
@@ -38,7 +39,7 @@ dependencies {
 }
 
 snakeskin {
-    version = "3.0beta7"
+    version = "3.0beta8a"
     modules {
         core()
         frc()
