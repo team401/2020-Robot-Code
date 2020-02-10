@@ -12,24 +12,10 @@ object HumanControllers {
     val driveTranslationChannel = AxisChannel()
     val driveRotationChannel = AxisChannel()
     val driveQuickTurnChannel = ButtonChannel()
-    val driveShiftChannel = ButtonChannel()
 
     val leftStick = HumanControls.t16000m(0) {
         invertAxis(Axes.Pitch)
         bindAxis(Axes.Pitch, driveTranslationChannel)
-        bindButton(Buttons.Trigger, driveShiftChannel)
-
-        whenButton(Buttons.StickLeft) {
-            pressed {
-                TurretSubsystem.targetAngle = 0.0
-            }
-        }
-
-        whenButton(Buttons.StickRight) {
-            pressed {
-                TurretSubsystem.targetAngle = Math.PI
-            }
-        }
     }
 
     val rightStick = HumanControls.t16000m(1) {
@@ -38,7 +24,7 @@ object HumanControllers {
     }
 
     val gamepad = HumanControls.f310(2) {
-        whenButton(Buttons.Y) {
+        /*whenButton(Buttons.Y) {
             pressed {
                 HangingSubsystem.HangingMachine.setState(HangingSubsystem.States.Forward)
             }
@@ -56,6 +42,6 @@ object HumanControllers {
             released {
                 HangingSubsystem.HangingMachine.setState(HangingSubsystem.States.Disabled)
             }
-        }
+        }*/
     }
 }
