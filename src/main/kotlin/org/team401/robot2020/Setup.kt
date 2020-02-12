@@ -27,9 +27,9 @@ fun setup() {
     SnakeskinRuntime.createRealTimeExecutor(0.01._s)
     Controllers.add(HumanControllers.leftStick, HumanControllers.rightStick)
     Subsystems.add(DrivetrainSubsystem)
-    //Subsystems.add(TurretSubsystem)
+    Subsystems.add(TurretSubsystem)
     RealTimeTasks.add(OdometryTracker(DrivetrainSubsystem))
-    //RealTimeTasks.add(TurretUpdater)
+    RealTimeTasks.add(TurretUpdater)
 
     TurretLimelight.start()
 }

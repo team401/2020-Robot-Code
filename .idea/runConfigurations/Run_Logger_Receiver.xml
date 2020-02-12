@@ -1,0 +1,15 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Run Logger Receiver" type="JetRunConfigurationType" factoryName="Kotlin">
+    <module name="2020-Robot-Code.main" />
+    <option name="VM_PARAMETERS" value="" />
+    <option name="PROGRAM_PARAMETERS" value="5801 $USER_HOME$/Desktop/Logs" />
+    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
+    <option name="ALTERNATIVE_JRE_PATH" />
+    <option name="PASS_PARENT_ENVS" value="true" />
+    <option name="MAIN_CLASS_NAME" value="org.team401.robot2020.util.LoggerClient" />
+    <option name="WORKING_DIRECTORY" value="" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

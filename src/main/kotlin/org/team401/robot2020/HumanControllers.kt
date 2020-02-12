@@ -16,6 +16,16 @@ object HumanControllers {
     val leftStick = HumanControls.t16000m(0) {
         invertAxis(Axes.Pitch)
         bindAxis(Axes.Pitch, driveTranslationChannel)
+
+        whenButton(Buttons.StickBottom) {
+            pressed {
+                TurretSubsystem.TurretMachine.setState(TurretSubsystem.States.Spin)
+            }
+
+            released {
+                TurretSubsystem.TurretMachine.setState(TurretSubsystem.States.NoVision)
+            }
+        }
     }
 
     val rightStick = HumanControls.t16000m(1) {

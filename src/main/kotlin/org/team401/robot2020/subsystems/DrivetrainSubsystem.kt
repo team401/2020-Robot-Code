@@ -88,7 +88,8 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
 
     enum class States {
         OperatorControl,
-        TrajectoryFollowing
+        TrajectoryFollowing,
+        VelocityControl
     }
 
     val driveMachine: StateMachine<States> = stateMachine {

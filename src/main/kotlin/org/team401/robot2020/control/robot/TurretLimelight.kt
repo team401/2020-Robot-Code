@@ -16,12 +16,10 @@ object TurretLimelight {
 
     private val table = NetworkTableInstance.getDefault().getTable("limelight-turret")
 
-    private val tx = table.getEntry("tx")
+    val tx = table.getEntry("tx")
     private val ty = table.getEntry("ty")
     private val tl = table.getEntry("tl")
     private val tv = table.getEntry("tv")
-
-    private fun roundToTenths(x: Double) = 0.1 * floor(x * 10.0)
 
     private object FrameListener: TableEntryListener {
         override fun valueChanged(table: NetworkTable, key: String, entry: NetworkTableEntry, value: NetworkTableValue, flags: Int) {
@@ -29,7 +27,7 @@ object TurretLimelight {
             if (tv.getDouble(0.0) == 1.0) {
                 val latency = tl.getDouble(0.0).Milliseconds.toSeconds()
                 val frameReceivedTimestamp = timestamp - latency - constantLatency
-                val targetHoriz = roundToTenths(-1.0 * tx.getDouble(0.0)).Degrees
+                val targetHoriz = (-1.0 * tx.getDouble(0.0)).Degrees
                 val targetVert = ty.getDouble(0.0).Degrees
 
                 val distance = (FieldGeometry.outerPortCenterHeight - TurretGeometry.turretCameraMountingHeight).value /
