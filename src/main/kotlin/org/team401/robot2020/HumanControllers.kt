@@ -36,21 +36,21 @@ object HumanControllers {
     val gamepad = HumanControls.f310(2) {
         /*whenButton(Buttons.Y) {
             pressed {
-                HangingSubsystem.HangingMachine.setState(HangingSubsystem.States.Forward)
+                //HangingSubsystem.HangingMachine.setState(HangingSubsystem.States.Forward)
             }
 
             released {
-                HangingSubsystem.HangingMachine.setState(HangingSubsystem.States.Disabled)
+                //HangingSubsystem.HangingMachine.setState(HangingSubsystem.States.Disabled)
             }
         }
 
         whenButton(Buttons.A) {
             pressed {
-                HangingSubsystem.HangingMachine.setState(HangingSubsystem.States.Reversed)
+                //HangingSubsystem.HangingMachine.setState(HangingSubsystem.States.Reversed)
             }
 
             released {
-                HangingSubsystem.HangingMachine.setState(HangingSubsystem.States.Disabled)
+                //HangingSubsystem.HangingMachine.setState(HangingSubsystem.States.Disabled)
             }
         }*/
     }

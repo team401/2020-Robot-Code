@@ -19,7 +19,7 @@ object BallSubsystem : Subsystem() {
     val BallMachine : StateMachine<States> = stateMachine {
         state(States.Shuttling) {
             action {
-                if (bottomGate.getState() && !topGate.getState()) {
+                if (!(bottomGate.getState() && !topGate.getState())) {
                     feederMotor.setPercentOutput(0.5)
                 } else {
                     setState(States.Stationary)
@@ -29,7 +29,7 @@ object BallSubsystem : Subsystem() {
 
         state(States.Stationary) {
             action {
-                if (bottomGate.getState() && !topGate.getState()) {
+                if (!(bottomGate.getState() && !topGate.getState())) {
                     setState(States.Shuttling)
                 } else {
                     feederMotor.setPercentOutput(0.0)
@@ -45,7 +45,7 @@ object BallSubsystem : Subsystem() {
 
         state(States.Starting) {
             action {
-                if (bottomGate.getState()){
+                if (!bottomGate.getState()){
                     setState(States.Shuttling)
                 } else {
                     feederMotor.setPercentOutput(0.5)
@@ -57,6 +57,8 @@ object BallSubsystem : Subsystem() {
     override fun setup() {
         on (Events.TELEOP_ENABLED) {
             BallMachine.setState(States.Stationary)
+            println("Top: $topGate")
+            println("Bottom: $bottomGate")
         }
     }
 }

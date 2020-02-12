@@ -25,11 +25,13 @@ import org.team401.taxis.geometry.Rotation2d
 @Setup
 fun setup() {
     SnakeskinRuntime.createRealTimeExecutor(0.01._s)
-    Controllers.add(HumanControllers.leftStick, HumanControllers.rightStick)
-    Subsystems.add(DrivetrainSubsystem)
-    Subsystems.add(TurretSubsystem)
-    RealTimeTasks.add(OdometryTracker(DrivetrainSubsystem))
-    RealTimeTasks.add(TurretUpdater)
+    //Controllers.add(HumanControllers.leftStick, HumanControllers.rightStick)
+    //Subsystems.add(DrivetrainSubsystem)
+    //Subsystems.add(TurretSubsystem)
+    //RealTimeTasks.add(OdometryTracker(DrivetrainSubsystem))
+    //RealTimeTasks.add(TurretUpdater)
 
-    TurretLimelight.start()
+    //Subsystems.add(HangingSubsystem)
+    Subsystems.add(BallSubsystem)
+    //TurretLimelight.start()
 }
