@@ -1,17 +1,53 @@
 package org.team401.robot2020.subsystems
 
+import org.snakeskin.component.SparkMaxOutputVoltageReadingMode
+import org.snakeskin.component.impl.NullSparkMaxDevice
+import org.snakeskin.component.impl.NullVictorSpxDevice
 import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
-import org.snakeskin.measure.Seconds
-import org.team401.robot2020.config.HardwareMap
+import org.team401.robot2020.config.constants.BallConstants
+import org.team401.robot2020.config.CANDevices
+import org.team401.robot2020.config.DIOChannels
 import org.team401.robot2020.util.inverted
 
+/**
+ * Ball handling subsystem, including the intake, flying V, and tower components.
+ */
 object BallSubsystem : Subsystem() {
-    val feederMotor = Hardware.createBrushlessSparkMax(HardwareMap.BallMap.feederId)
-    val bottomGate = Hardware.createDigitalInputChannel(HardwareMap.BallMap.bottomGate).inverted()
-    val topGate = Hardware.createDigitalInputChannel(HardwareMap.BallMap.topGate).inverted()
+    //<editor-fold desc="Hardware Devices">
+    private val flyingVMotors = Hardware.createVictorSPX(
+        CANDevices.flyingVMotors.canID,
+        mockProducer = NullVictorSpxDevice.producer
+    )
+    private val towerMotor = Hardware.createBrushlessSparkMax(
+        CANDevices.towerMotor.canID,
+        SparkMaxOutputVoltageReadingMode.MultiplyVbusDevice,
+        mockProducer = NullSparkMaxDevice.producer
+    )
+    private val intakeWheelsMotor = Hardware.createBrushlessSparkMax(
+        CANDevices.intakeWheelsMotor.canID,
+        SparkMaxOutputVoltageReadingMode.MultiplyVbusDevice,
+        mockProducer = NullSparkMaxDevice.producer
+    )
+    private val intakePivotMotor = Hardware.createBrushlessSparkMaxWithEncoder(
+        CANDevices.intakePivotMotor.canID,
+        8192, //REV Through Bore Encoder
+        SparkMaxOutputVoltageReadingMode.MultiplyVbusDevice,
+        mockProducer = NullSparkMaxDevice.producer
+    )
 
-    enum class States {
+    private val bottomGateSensor = Hardware.createDigitalInputChannel(
+        DIOChannels.towerBottomGateSensor,
+        halMock = true
+    ).inverted()
+
+    private val topGateSensor = Hardware.createDigitalInputChannel(
+        DIOChannels.towerTopGateSensor,
+        halMock = true
+    ).inverted()
+    //</editor-fold>
+
+    enum class TowerStates {
         Waiting, //Default state, waiting for ball to trip the bottom gate
         Feeding, //Ball tripped gate, waiting for ball to clear bottom gate
         Spacing, //Timed state to advance ball forward to ensure proper spacing of the balls
@@ -19,81 +55,72 @@ object BallSubsystem : Subsystem() {
         Full //Tower is full (both top and bottom gate are on)
     }
 
-    val feedingPower = .2
-    val spacingPower = .05
-    val reversingPower = -.2
-
-    val BallMachine : StateMachine<States> = stateMachine {
-        state(States.Waiting) {
+    val towerMachine: StateMachine<TowerStates> = stateMachine {
+        state(TowerStates.Waiting) {
             action {
-                feederMotor.stop() //No motion during waiting
+                towerMotor.stop() //No motion during waiting
 
-                val bottomState = bottomGate.getState()
-                val topState = topGate.getState()
+                val bottomState = bottomGateSensor.getState()
+                val topState = topGateSensor.getState()
 
                 when {
-                    (topState && bottomState) -> setState(States.Full) //Both gates triggered, tower is full
-                    (topState && !bottomState) -> setState(States.Reversing) //Balls are not at the start of the tower, reverse
-                    (bottomState) -> setState(States.Feeding) //Ball is ready to enter the tower
+                    (topState && bottomState) -> setState(TowerStates.Full) //Both gates triggered, tower is full
+                    (topState && !bottomState) -> setState(TowerStates.Reversing) //Balls are not at the start of the tower, reverse
+                    (bottomState) -> setState(TowerStates.Feeding) //Ball is ready to enter the tower
                 }
             }
         }
 
-        state(States.Feeding) {
+        state(TowerStates.Feeding) {
             action {
-                feederMotor.setPercentOutput(feedingPower)
+                towerMotor.setPercentOutput(BallConstants.towerFeedingPower)
 
-                val bottomState = bottomGate.getState()
-                val topState = topGate.getState()
+                val bottomState = bottomGateSensor.getState()
+                val topState = topGateSensor.getState()
 
                 when {
-                    (topState && bottomState) -> setState(States.Full) //Both gates triggered, tower is full
-                    (topState) -> setState(States.Reversing) //Spacing is somehow off and a new ball is being entered
-                    (!bottomState) -> setState(States.Spacing) //New ball has entered the system
+                    (topState && bottomState) -> setState(TowerStates.Full) //Both gates triggered, tower is full
+                    (topState) -> setState(TowerStates.Reversing) //Spacing is somehow off and a new ball is being entered
+                    (!bottomState) -> setState(TowerStates.Spacing) //New ball has entered the system
                 }
             }
         }
 
-        state(States.Spacing) {
-            timeout(.03.Seconds, States.Waiting) //Timed state to go back into waiting
+        state(TowerStates.Spacing) {
+            timeout(BallConstants.towerSpacingTime, TowerStates.Waiting) //Timed state to go back into waiting
 
             action {
-                feederMotor.setPercentOutput(spacingPower)
+                towerMotor.setPercentOutput(BallConstants.towerSpacingPower)
             }
         }
 
-        state(States.Reversing) {
+        state(TowerStates.Reversing) {
             action {
-                feederMotor.setPercentOutput(reversingPower)
+                towerMotor.setPercentOutput(BallConstants.towerReversingPower)
 
-                val bottomState = bottomGate.getState()
-                val topState = topGate.getState()
+                val bottomState = bottomGateSensor.getState()
 
                 when {
-                    (bottomState) -> setState(States.Spacing)
+                    (bottomState) -> setState(TowerStates.Spacing)
                 }
             }
         }
 
-        state(States.Full) {
+        state(TowerStates.Full) {
             action {
-                feederMotor.stop()
+                towerMotor.stop()
 
-                val bottomState = bottomGate.getState()
-                val topState = topGate.getState()
+                val bottomState = bottomGateSensor.getState()
+                val topState = topGateSensor.getState()
 
-                if (!bottomState || !topState) setState(States.Waiting)
+                if (!bottomState || !topState) setState(TowerStates.Waiting)
             }
         }
-    }
-
-    override fun action() {
-        println("T: ${topGate.getState()}\t\t\t\t B: ${bottomGate.getState()}")
     }
 
     override fun setup() {
         on (Events.TELEOP_ENABLED) {
-            BallMachine.setState(States.Waiting)
+            towerMachine.setState(TowerStates.Waiting)
         }
     }
 }

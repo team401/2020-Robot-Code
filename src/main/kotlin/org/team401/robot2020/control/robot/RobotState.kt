@@ -3,9 +3,6 @@ package org.team401.robot2020.control.robot
 import org.snakeskin.measure.Inches
 import org.snakeskin.measure.Seconds
 import org.snakeskin.measure.time.TimeMeasureSeconds
-import org.snakeskin.runtime.SnakeskinPlatform
-import org.snakeskin.runtime.SnakeskinRuntime
-import org.team401.robot2020.config.TurretGeometry
 import org.team401.robot2020.subsystems.DrivetrainSubsystem
 import org.team401.taxis.diffdrive.odometry.DifferentialDriveState
 import org.team401.taxis.geometry.Pose2d

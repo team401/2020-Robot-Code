@@ -4,39 +4,32 @@ import com.revrobotics.CANSparkMax
 import com.revrobotics.ColorMatch
 import org.snakeskin.dsl.*
 import org.snakeskin.measure.*
-import org.snakeskin.event.Events
 import com.revrobotics.ColorSensorV3
 import edu.wpi.first.wpilibj.I2C
 import org.snakeskin.component.SmartGearbox
 import org.snakeskin.measure.acceleration.angular.AngularAccelerationMeasureRevolutionsPerSecondPerSecond
 import org.snakeskin.measure.distance.angular.AngularDistanceMeasureRevolutions
-import org.team401.robot2020.config.SpinnerParameters
+import org.team401.robot2020.config.CANDevices
 import org.team401.robot2020.control.spinner.*
-import org.team401.robot2020.config.SpinnerParameters.redTarget
-import org.team401.robot2020.config.SpinnerParameters.blueTarget
-import org.team401.robot2020.config.SpinnerParameters.greenTarget
-import org.team401.robot2020.config.SpinnerParameters.yellowTarget
-import kotlin.math.sign
+import org.team401.robot2020.config.constants.SpinnerConstants
 
 object SpinnerSubsystem : Subsystem() {
-    private val wheelSpark = Hardware.createBrushlessSparkMax(1)
+    private val spinnerMotor = Hardware.createBrushlessSparkMax(CANDevices.spinnerMotor.canID)
 
     //This gearbox includes both the reduction of the actual gearbox, as well as the reduction between our wheel and the control panel
     private val spinnerGearbox = SmartGearbox(
-        wheelSpark,
-        ratioToSensor = SpinnerParameters.finalReduction
+        spinnerMotor,
+        ratioToSensor = SpinnerConstants.effectiveRatio
     )
-
-    private val colorSensor = ColorSensorV3(I2C.Port.kOnboard)
-
-    private val colorMatcher = ColorMatch()
 
     //private val pusherPiston = Solenoid(1) //TODO put me back
 
-    enum class States {
-        Position,
-        Rotation,
-        Disabled,
+    private val colorSensor by lazy { ColorSensorV3(I2C.Port.kOnboard) }
+    private val colorMatcher = ColorMatch()
+
+    enum class SpinnerStates {
+        PositionObjective,
+        RotationObjective,
         ManualControl
     }
 
@@ -48,7 +41,7 @@ object SpinnerSubsystem : Subsystem() {
         Unknown
     }
 
-    val SpinnerMachine: StateMachine<States> = stateMachine() {
+    val spinnerMachine: StateMachine<SpinnerStates> = stateMachine() {
         var rotationTarget = 0.0.Revolutions
         var startTime = 0.0.Seconds
         var startPosition = 0.0.Revolutions
@@ -72,8 +65,8 @@ object SpinnerSubsystem : Subsystem() {
                 }
                 val elapsedTime = (timestamp - decelStartTime)
                 val speed = (lastVelocity - (accel * elapsedTime)).coerceAtLeast(0.0._rev_per_s)
-                val power = speed.value / SpinnerParameters.maxRps
-                spinnerGearbox.setPercentOutput(power * sign(rotationTarget.value))
+                val power = speed / SpinnerConstants.maxFreeSpeed
+                spinnerGearbox.setPercentOutput(power * rotationTarget.sign())
                 if (power == 0.0) {
                     spinnerGearbox.stop()
                     disable()
@@ -81,15 +74,15 @@ object SpinnerSubsystem : Subsystem() {
             } else {
                 val elapsedTime = (timestamp - startTime)
                 val speed = (accel * elapsedTime).coerceAtMost(
-                    SpinnerParameters.desiredControlPanelVelocity
+                    SpinnerConstants.cruiseVelocity
                 )
-                val power = speed.value / SpinnerParameters.maxRps
-                spinnerGearbox.setPercentOutput(power * sign(rotationTarget.value))
+                val power = speed / SpinnerConstants.maxFreeSpeed
+                spinnerGearbox.setPercentOutput(power * rotationTarget.sign())
                 lastVelocity = speed
             }
         }
 
-        state(States.Position) {
+        state(SpinnerStates.PositionObjective) {
             val desiredColor = SpinnerColor.Blue
 
             entry {
@@ -101,36 +94,38 @@ object SpinnerSubsystem : Subsystem() {
                 val desired = SpinnerAlgorithms.calculateSpinnerRotation(currentColor, desiredColor).toRevolutions()
                 beginRotation(desired)
                 //pusherPiston.set(true)
+                delay(SpinnerConstants.deployDelay)
             }
 
             action {
-                updateRotation(SpinnerParameters.desiredControlPanelPositionAccel)
+                updateRotation(SpinnerConstants.positionAccel)
             }
         }
 
 
-        state(States.Rotation) {
+        state(SpinnerStates.RotationObjective) {
             entry {
-                beginRotation(SpinnerParameters.desiredNumControlPanelRevs)
+                beginRotation(SpinnerConstants.rotationDistance)
+                //pusherPiston.set(true)
+                delay(SpinnerConstants.deployDelay)
+            }
+
+            action {
+                updateRotation(SpinnerConstants.rotationAccel)
+            }
+        }
+
+        state(SpinnerStates.ManualControl) {
+            entry {
                 //pusherPiston.set(true)
             }
 
             action {
-                updateRotation(SpinnerParameters.desiredControlPanelRotationAccel)
+                spinnerGearbox.setPercentOutput(SpinnerConstants.cruiseVelocity / SpinnerConstants.maxFreeSpeed)
             }
         }
 
-        state(States.ManualControl) {
-            entry {
-                //pusherPiston.set(true)
-            }
-
-            action {
-                spinnerGearbox.setPercentOutput(SpinnerParameters.desiredControlPanelVelocity.value / SpinnerParameters.maxRps)
-            }
-        }
-
-        state(States.Disabled) {
+        disabled {
             entry {
                 //pusherPiston.set(false)
             }
@@ -147,19 +142,14 @@ object SpinnerSubsystem : Subsystem() {
     }
 
     override fun setup() {
-        colorMatcher.addColorMatch(blueTarget)
-        colorMatcher.addColorMatch(greenTarget)
-        colorMatcher.addColorMatch(redTarget)
-        colorMatcher.addColorMatch(yellowTarget)
+        colorMatcher.addColorMatch(SpinnerConstants.blueColor)
+        colorMatcher.addColorMatch(SpinnerConstants.greenColor)
+        colorMatcher.addColorMatch(SpinnerConstants.redColor)
+        colorMatcher.addColorMatch(SpinnerConstants.yellowColor)
 
-        useHardware(wheelSpark) {
+        useHardware(spinnerMotor) {
             idleMode = CANSparkMax.IdleMode.kBrake
-            setCANTimeout(1000)
             inverted = true
-        }
-
-        on(Events.TELEOP_ENABLED) {
-            SpinnerMachine.setState(States.Disabled)
         }
     }
 }

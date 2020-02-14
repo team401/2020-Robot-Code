@@ -7,6 +7,7 @@ import org.snakeskin.measure.Unitless
 import org.snakeskin.measure.distance.angular.AngularDistanceMeasureDegrees
 import org.team401.robot2020.subsystems.SpinnerSubsystem.SpinnerColor
 import org.team401.robot2020.config.*
+import org.team401.robot2020.config.constants.SpinnerConstants
 
 object SpinnerAlgorithms {
     private val degreesPerSlice = 45.0.Degrees
@@ -39,10 +40,10 @@ object SpinnerAlgorithms {
     fun matchColor(matchResult: ColorMatchResult): SpinnerColor {
 
         return when(matchResult.color) {
-            SpinnerParameters.blueTarget -> SpinnerColor.Blue
-            SpinnerParameters.redTarget -> SpinnerColor.Red
-            SpinnerParameters.greenTarget -> SpinnerColor.Green
-            SpinnerParameters.yellowTarget -> SpinnerColor.Yellow
+            SpinnerConstants.blueColor -> SpinnerColor.Blue
+            SpinnerConstants.redColor -> SpinnerColor.Red
+            SpinnerConstants.greenColor -> SpinnerColor.Green
+            SpinnerConstants.yellowColor -> SpinnerColor.Yellow
             else -> SpinnerColor.Unknown
         }
     }

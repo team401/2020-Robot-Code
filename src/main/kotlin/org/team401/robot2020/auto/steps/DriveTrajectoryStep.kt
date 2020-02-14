@@ -18,7 +18,7 @@ class DriveTrajectoryStep(referenceTrajectory: Trajectory<TimedState<Pose2dWithC
             DrivetrainSubsystem.setPose(startPose, currentTime) //Reconfigure the drive
             DrivetrainSubsystem.pathManager.reset() //Reset the path manager
             DrivetrainSubsystem.pathManager.setTrajectory(trajectory) //Load in the path
-            DrivetrainSubsystem.driveMachine.setState(DrivetrainSubsystem.States.TrajectoryFollowing).waitFor()
+            DrivetrainSubsystem.driveMachine.setState(DrivetrainSubsystem.DriveStates.TrajectoryFollowing).waitFor()
         }
     }
 

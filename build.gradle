@@ -35,7 +35,7 @@ dependencies {
 
     implementation "com.revrobotics.frc:ColorSensorV3-java:1.0.1"
 
-    implementation "org.team401:Taxis:1.5"
+    implementation "org.team401:Taxis:1.5.1"
 }
 
 snakeskin {

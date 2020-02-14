@@ -6,7 +6,6 @@ import org.snakeskin.logic.LowPass
 import org.snakeskin.measure.Degrees
 import org.snakeskin.measure.Milliseconds
 import org.team401.robot2020.config.FieldGeometry
-import org.team401.robot2020.config.TurretGeometry
 import org.team401.taxis.geometry.Rotation2d
 import kotlin.math.floor
 import kotlin.math.tan
@@ -30,10 +29,12 @@ object TurretLimelight {
                 val targetHoriz = (-1.0 * tx.getDouble(0.0)).Degrees
                 val targetVert = ty.getDouble(0.0).Degrees
 
+                /* TODO add distance calculation (requires mode detection of far vs. near)
                 val distance = (FieldGeometry.outerPortCenterHeight - TurretGeometry.turretCameraMountingHeight).value /
                         tan((TurretGeometry.turretCameraMountingAngle + targetVert).value)
+                 */
 
-                RobotState.addCameraObservation(Rotation2d.fromDegrees(targetHoriz.value), distance, frameReceivedTimestamp)
+                RobotState.addCameraObservation(Rotation2d.fromDegrees(targetHoriz.value), 0.0, frameReceivedTimestamp)
             }
         }
     }

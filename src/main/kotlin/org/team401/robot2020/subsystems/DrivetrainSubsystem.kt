@@ -6,75 +6,59 @@ import com.ctre.phoenix.motorcontrol.StatusFrame
 import edu.wpi.first.wpilibj.controller.PIDController
 import edu.wpi.first.wpilibj.controller.SimpleMotorFeedforward
 import org.snakeskin.component.Gearbox
-import org.snakeskin.component.SmartGearbox
 import org.snakeskin.component.impl.NullPigeonImuDevice
 import org.snakeskin.component.impl.NullTalonFxDevice
 import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
-import org.snakeskin.logic.scalars.IScalar
-import org.snakeskin.logic.scalars.LowPassScalar
 import org.snakeskin.measure.*
-import org.snakeskin.measure.velocity.angular.AngularVelocityMeasureRadiansPerSecond
 import org.snakeskin.utility.CheesyDriveController
 import org.team401.robot2020.HumanControllers
-import org.team401.robot2020.config.DrivetrainGeometry
-import org.team401.robot2020.config.DrivetrainDynamics
-import org.team401.robot2020.config.HardwareMap
+import org.team401.robot2020.config.*
+import org.team401.robot2020.config.constants.DrivetrainConstants
 import org.team401.robot2020.control.robot.RobotState
-import org.team401.robot2020.control.robot.TurretLimelight
 import org.team401.taxis.diffdrive.component.IModeledDifferentialDrivetrain
 import org.team401.taxis.diffdrive.component.impl.YawHeadingSource
-import org.team401.taxis.diffdrive.component.provider.IHeadingProvider
 import org.team401.taxis.diffdrive.control.DifferentialDrivetrainModel
 import org.team401.taxis.diffdrive.control.DrivetrainPathManager
 import org.team401.taxis.diffdrive.control.NonlinearFeedbackPathController
-import org.team401.taxis.diffdrive.odometry.DifferentialDriveState
 import org.team401.taxis.geometry.Pose2d
 
 object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
-    override val geometry = DrivetrainGeometry
-    override val model = DifferentialDrivetrainModel(DrivetrainGeometry, DrivetrainDynamics)
-
-    private val leftModelOpenLoop = SimpleMotorFeedforward(
-        DrivetrainDynamics.leftKs,
-        DrivetrainDynamics.leftKv
+    //<editor-fold desc="Hardware Devices">
+    private val leftMaster = Hardware.createTalonFX(
+        CANDevices.driveLeftFrontMotor.canID,
+        mockProducer = NullTalonFxDevice.producer
+    )
+    private val leftSlave = Hardware.createTalonFX(
+        CANDevices.driveLeftRearMotor.canID,
+        mockProducer = NullTalonFxDevice.producer
+    )
+    private val rightMaster = Hardware.createTalonFX(
+        CANDevices.driveRightFrontMotor.canID,
+        mockProducer = NullTalonFxDevice.producer
+    )
+    private val rightSlave = Hardware.createTalonFX(
+        CANDevices.driveRightRearMotor.canID,
+        mockProducer = NullTalonFxDevice.producer
     )
 
-    private val rightModelOpenLoop = SimpleMotorFeedforward(
-        DrivetrainDynamics.rightKs,
-        DrivetrainDynamics.rightKv
+    override val yawSensor = Hardware.createCANPigeonIMU(
+        CANDevices.pigeon,
+        mockProducer = NullPigeonImuDevice.producer
     )
-
-    private val leftPid by lazy { PIDController(DrivetrainDynamics.driveLeftKp, 0.0, 0.0) }
-    private val rightPid by lazy { PIDController(DrivetrainDynamics.driveRightKp, 0.0, 0.0) }
-
-    val pathManager = DrivetrainPathManager(
-        model,
-        NonlinearFeedbackPathController(2.0, .7),
-        2.0, .25, 5.0.Degrees.toRadians().value
-    )
-
-    override val yawSensor = Hardware.createCANPigeonIMU(HardwareMap.DrivetrainMap.pigeonId, mockProducer = NullPigeonImuDevice.producer)
     override val headingSource = YawHeadingSource(yawSensor)
 
-    override val driveState = RobotState
-
-    private val leftMaster = Hardware.createTalonFX(HardwareMap.DrivetrainMap.leftFrontFalconId, mockProducer = NullTalonFxDevice.producer)
-    private val leftSlave = Hardware.createTalonFX(HardwareMap.DrivetrainMap.leftRearFalconId, mockProducer = NullTalonFxDevice.producer)
-    private val rightMaster = Hardware.createTalonFX(HardwareMap.DrivetrainMap.rightFrontFaconId, mockProducer = NullTalonFxDevice.producer)
-    private val rightSlave = Hardware.createTalonFX(HardwareMap.DrivetrainMap.rightRearFalconId, mockProducer = NullTalonFxDevice.producer)
-
     private val leftEncoder = Hardware.createDIOEncoder(
-        HardwareMap.DrivetrainMap.leftEncoderA,
-        HardwareMap.DrivetrainMap.leftEncoderB,
+        DIOChannels.driveLeftEncoderA,
+        DIOChannels.driveLeftEncoderB,
         8192.0,
         false,
         halMock = true
     )
 
     private val rightEncoder = Hardware.createDIOEncoder(
-        HardwareMap.DrivetrainMap.rightEncoderA,
-        HardwareMap.DrivetrainMap.rightEncoderB,
+        DIOChannels.driveRightEncoderA,
+        DIOChannels.driveRightEncoderB,
         8192.0,
         true,
         halMock = true
@@ -82,18 +66,42 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
 
     override val left = Gearbox(leftEncoder, leftMaster, leftSlave)
     override val right = Gearbox(rightEncoder, rightMaster, rightSlave)
+    //</editor-fold>
 
-    private val cheesyDriveController = CheesyDriveController(DrivetrainDynamics.CheesyDriveParameters)
+    //<editor-fold desc="Models and Controllers">
+    override val geometry = DrivetrainConstants
+    override val model = DifferentialDrivetrainModel(
+        DrivetrainConstants,
+        DrivetrainConstants
+    )
 
+    private val leftSimpleModel = SimpleMotorFeedforward(
+        DrivetrainConstants.leftKs,
+        DrivetrainConstants.leftKv
+    )
 
-    enum class States {
+    private val rightSimpleModel = SimpleMotorFeedforward(
+        DrivetrainConstants.rightKs,
+        DrivetrainConstants.rightKv
+    )
+
+    //Lazy init since these make HAL calls for usage reporting (for some stupid reason)
+    private val leftPid by lazy { PIDController(DrivetrainConstants.leftKp, 0.0, 0.0) }
+    private val rightPid by lazy { PIDController(DrivetrainConstants.rightKp, 0.0, 0.0) }
+
+    val pathManager = DrivetrainPathManager(model, NonlinearFeedbackPathController())
+    override val driveState = RobotState
+
+    private val cheesyDriveController = CheesyDriveController(DrivetrainConstants.CheesyDriveParameters)
+    //</editor-fold>
+
+    enum class DriveStates {
         OperatorControl,
-        TrajectoryFollowing,
-        VelocityControl
+        TrajectoryFollowing
     }
 
-    val driveMachine: StateMachine<States> = stateMachine {
-        state(States.OperatorControl) {
+    val driveMachine: StateMachine<DriveStates> = stateMachine {
+        state(DriveStates.OperatorControl) {
             entry {
                 cheesyDriveController.reset()
                 configForTeleopDriving()
@@ -103,15 +111,15 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
                 val trans = HumanControllers.driveTranslationChannel.read()
                 val rot = HumanControllers.driveRotationChannel.read()
                 val output = cheesyDriveController.update(trans, rot, false, HumanControllers.driveQuickTurnChannel.read())
-                val leftVel = output.left._ul * (DrivetrainDynamics.driveSpeedIdeal.toAngularVelocity(geometry.wheelRadius))
-                val rightVel = output.right._ul * (DrivetrainDynamics.driveSpeedIdeal.toAngularVelocity(geometry.wheelRadius))
-                val leftOut = leftModelOpenLoop.calculate(leftVel.value) / 12.0
-                val rightOut = rightModelOpenLoop.calculate(rightVel.value) / 12.0
+                val leftVel = output.left._ul * DrivetrainConstants.maxSpeed
+                val rightVel = output.right._ul * DrivetrainConstants.maxSpeed
+                val leftOut = leftSimpleModel.calculate(leftVel.value) / 12.0
+                val rightOut = rightSimpleModel.calculate(rightVel.value) / 12.0
                 tank(leftOut, rightOut)
             }
         }
 
-        state(States.TrajectoryFollowing) {
+        state(DriveStates.TrajectoryFollowing) {
             entry {
                 configForAutoDriving()
             }
@@ -143,6 +151,7 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
         //println(driveState.getLatestFieldToVehicle().value)
     }
 
+    //<editor-fold desc="Motor Controller Configuration Functions">
     private fun configForStartup() {
         left.couple()
         right.couple()
@@ -204,14 +213,14 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
             configNeutralDeadband(0.05)
         }
     }
+    //</editor-fold>
 
     override fun setup() {
         configForStartup()
-
         setPose(Pose2d.identity(), readTimestamp())
 
         on (Events.TELEOP_ENABLED) {
-            driveMachine.setState(States.OperatorControl)
+            driveMachine.setState(DriveStates.OperatorControl)
         }
     }
 }
