@@ -12,6 +12,7 @@ object ShooterSubsystem: Subsystem() {
         SparkMaxOutputVoltageReadingMode.MultiplyVbusDevice,
         mockProducer = NullSparkMaxDevice.producer
     )
+
     private val shooterMotorB = Hardware.createBrushlessSparkMax(
         CANDevices.shooterMotorB.canID,
         SparkMaxOutputVoltageReadingMode.MultiplyVbusDevice,

@@ -1,10 +1,12 @@
 package org.team401.robot2020.subsystems
 
+import com.revrobotics.CANSparkMax
 import org.snakeskin.component.SparkMaxOutputVoltageReadingMode
 import org.snakeskin.component.impl.NullSparkMaxDevice
 import org.snakeskin.component.impl.NullVictorSpxDevice
 import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
+import org.snakeskin.subsystem.States
 import org.team401.robot2020.config.constants.BallConstants
 import org.team401.robot2020.config.CANDevices
 import org.team401.robot2020.config.DIOChannels
@@ -24,11 +26,12 @@ object BallSubsystem : Subsystem() {
         SparkMaxOutputVoltageReadingMode.MultiplyVbusDevice,
         mockProducer = NullSparkMaxDevice.producer
     )
-    private val intakeWheelsMotor = Hardware.createBrushlessSparkMax(
+    /*private val intakeWheelsMotor = Hardware.createBrushlessSparkMax(
         CANDevices.intakeWheelsMotor.canID,
         SparkMaxOutputVoltageReadingMode.MultiplyVbusDevice,
         mockProducer = NullSparkMaxDevice.producer
-    )
+    )*/
+    private val intakeWheelsMotor = Hardware.createBrushlessSparkMax(25)
     private val intakePivotMotor = Hardware.createBrushlessSparkMaxWithEncoder(
         CANDevices.intakePivotMotor.canID,
         8192, //REV Through Bore Encoder
@@ -46,7 +49,7 @@ object BallSubsystem : Subsystem() {
         halMock = true
     ).inverted()
     //</editor-fold>
-
+/*
     enum class TowerStates {
         Waiting, //Default state, waiting for ball to trip the bottom gate
         Feeding, //Ball tripped gate, waiting for ball to clear bottom gate
@@ -116,11 +119,37 @@ object BallSubsystem : Subsystem() {
                 if (!bottomState || !topState) setState(TowerStates.Waiting)
             }
         }
+    }*/
+
+    enum class IntakeStates {
+        Intaking,
+        Waiting
+    }
+
+    val intakingMachine : StateMachine<IntakeStates> = stateMachine {
+        state(IntakeStates.Intaking) {
+           action {
+               intakeWheelsMotor.setPercentOutput(.25)
+               println("intaking")
+
+           }
+        }
+
+        state(IntakeStates.Waiting) {
+            action {
+                intakeWheelsMotor.setPercentOutput(0.0)
+                println("waiting")
+            }
+        }
     }
 
     override fun setup() {
+        useHardware(intakeWheelsMotor) {
+            idleMode = CANSparkMax.IdleMode.kBrake
+        }
+
         on (Events.TELEOP_ENABLED) {
-            towerMachine.setState(TowerStates.Waiting)
+            intakingMachine.setState(IntakeStates.Waiting)
         }
     }
 }

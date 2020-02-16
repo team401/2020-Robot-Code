@@ -29,13 +29,8 @@ import javax.imageio.ImageIO
 @Setup
 fun setup() {
     SnakeskinRuntime.createRealTimeExecutor(0.01._s)
-    //Controllers.add(HumanControllers.leftStick, HumanControllers.rightStick)
+    Controllers.add(HumanControllers.gamePad)
     //Subsystems.add(DrivetrainSubsystem)
-    //Subsystems.add(TurretSubsystem)
     //RealTimeTasks.add(OdometryTracker(DrivetrainSubsystem))
-    //RealTimeTasks.add(TurretUpdater)
-
-    //Subsystems.add(HangingSubsystem)
     Subsystems.add(BallSubsystem)
-    //TurretLimelight.start()
 }

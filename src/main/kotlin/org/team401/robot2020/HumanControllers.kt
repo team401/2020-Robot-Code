@@ -4,6 +4,7 @@ import org.snakeskin.dsl.*
 import org.snakeskin.hid.channel.AxisChannel
 import org.snakeskin.hid.channel.ButtonChannel
 import org.snakeskin.logic.scalars.LowPassScalar
+import org.team401.robot2020.subsystems.BallSubsystem
 import org.team401.robot2020.subsystems.SpinnerSubsystem
 
 object HumanControllers {
@@ -20,4 +21,19 @@ object HumanControllers {
         bindAxis(Axes.Roll, driveRotationChannel)
         bindButton(Buttons.Trigger, driveQuickTurnChannel)
     }
+
+    val gamePad = HumanControls.f310(0) {
+        whenButton(Buttons.A) {
+            pressed {
+                println("A pressed")
+                BallSubsystem.intakingMachine.setState(BallSubsystem.IntakeStates.Intaking)
+            }
+
+            released {
+                println("A released")
+                BallSubsystem.intakingMachine.setState(BallSubsystem.IntakeStates.Waiting)
+            }
+        }
+    }
 }
+
