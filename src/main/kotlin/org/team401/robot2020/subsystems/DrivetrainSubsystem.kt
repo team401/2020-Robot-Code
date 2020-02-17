@@ -95,6 +95,8 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
     private val cheesyDriveController = CheesyDriveController(DrivetrainConstants.CheesyDriveParameters)
     //</editor-fold>
 
+    fun getRoll() = yawSensor.getRoll()
+
     enum class DriveStates {
         OperatorControl,
         TrajectoryFollowing
