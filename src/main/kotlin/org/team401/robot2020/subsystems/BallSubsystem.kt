@@ -1,11 +1,21 @@
 package org.team401.robot2020.subsystems
 
+import com.revrobotics.CANEncoder
 import com.revrobotics.CANSparkMax
+import edu.wpi.first.wpilibj.controller.ProfiledPIDController
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
+import edu.wpi.first.wpilibj.trajectory.TrapezoidProfile
+import org.snakeskin.component.SmartGearbox
 import org.snakeskin.component.SparkMaxOutputVoltageReadingMode
+import org.snakeskin.component.impl.HardwareSparkMaxDevice
 import org.snakeskin.component.impl.NullSparkMaxDevice
+import org.snakeskin.component.impl.NullTalonSrxDevice
 import org.snakeskin.component.impl.NullVictorSpxDevice
 import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
+import org.snakeskin.measure.Degrees
+import org.snakeskin.measure.Revolutions
+import org.snakeskin.measure.Seconds
 import org.snakeskin.subsystem.States
 import org.team401.robot2020.config.constants.BallConstants
 import org.team401.robot2020.config.CANDevices
@@ -17,27 +27,29 @@ import org.team401.robot2020.util.inverted
  */
 object BallSubsystem : Subsystem() {
     //<editor-fold desc="Hardware Devices">
-    private val flyingVMotors = Hardware.createVictorSPX(
+    private val flyingVMotors = Hardware.createTalonSRX(
         CANDevices.flyingVMotors.canID,
-        mockProducer = NullVictorSpxDevice.producer
+        mockProducer = NullTalonSrxDevice.producer
     )
     private val towerMotor = Hardware.createBrushlessSparkMax(
         CANDevices.towerMotor.canID,
         SparkMaxOutputVoltageReadingMode.MultiplyVbusDevice,
         mockProducer = NullSparkMaxDevice.producer
     )
-    /*private val intakeWheelsMotor = Hardware.createBrushlessSparkMax(
+
+    private val intakeWheelsMotor = Hardware.createBrushlessSparkMax(
         CANDevices.intakeWheelsMotor.canID,
-        SparkMaxOutputVoltageReadingMode.MultiplyVbusDevice,
         mockProducer = NullSparkMaxDevice.producer
-    )*/
-    private val intakeWheelsMotor = Hardware.createBrushlessSparkMax(25)
+    )
+
     private val intakePivotMotor = Hardware.createBrushlessSparkMaxWithEncoder(
         CANDevices.intakePivotMotor.canID,
         8192, //REV Through Bore Encoder
         SparkMaxOutputVoltageReadingMode.MultiplyVbusDevice,
         mockProducer = NullSparkMaxDevice.producer
     )
+
+    val intakePivotGearbox = SmartGearbox(intakePivotMotor)
 
     private val bottomGateSensor = Hardware.createDigitalInputChannel(
         DIOChannels.towerBottomGateSensor,
@@ -121,6 +133,8 @@ object BallSubsystem : Subsystem() {
         }
     }*/
 
+    /*
+
     enum class IntakeStates {
         Intaking,
         Waiting
@@ -129,7 +143,7 @@ object BallSubsystem : Subsystem() {
     val intakingMachine : StateMachine<IntakeStates> = stateMachine {
         state(IntakeStates.Intaking) {
            action {
-               intakeWheelsMotor.setPercentOutput(.25)
+               intakeWheelsMotor.setPercentOutput(1.0)
                println("intaking")
 
            }
@@ -141,15 +155,55 @@ object BallSubsystem : Subsystem() {
                 println("waiting")
             }
         }
+
+    }
+
+     */
+
+    private val armController = ProfiledPIDController(0.0, 0.0, 0.0,
+        TrapezoidProfile.Constraints(
+            (45.0.Degrees / .5.Seconds).toRevolutionsPerSecond().value,
+            (45.0.Degrees / .5.Seconds / .25.Seconds).toRevolutionsPerSecondPerSecond().value)
+    )
+
+    enum class ArmStates {
+        Move
+    }
+
+    val armMachine: StateMachine<ArmStates> = stateMachine {
+        state(ArmStates.Move) {
+            entry {
+                armController.p = SmartDashboard.getNumber("arm_p", 0.0)
+                armController.reset(intakePivotGearbox.getAngularPosition().value)
+            }
+            rtAction { timestamp, dt ->
+                val position = intakePivotGearbox.getAngularPosition().value
+                val volts = armController.calculate(position, (-80.0).Degrees.toRevolutions().value)
+
+                val out = volts / 12.0
+
+                intakePivotGearbox.setPercentOutput(out)
+            }
+        }
+    }
+
+    override fun action() {
+        println(intakePivotGearbox.getAngularPosition().toDegrees())
     }
 
     override fun setup() {
-        useHardware(intakeWheelsMotor) {
+        intakePivotGearbox.setAngularPosition(0.0.Revolutions)
+
+        useHardware(intakePivotMotor) {
+            inverted = true
             idleMode = CANSparkMax.IdleMode.kBrake
+            enableVoltageCompensation(12.0)
         }
 
         on (Events.TELEOP_ENABLED) {
-            intakingMachine.setState(IntakeStates.Waiting)
+            armMachine.setState(ArmStates.Move)
         }
+
+        SmartDashboard.putNumber("arm_p", 0.0)
     }
 }

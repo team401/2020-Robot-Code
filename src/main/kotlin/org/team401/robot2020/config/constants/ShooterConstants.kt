@@ -39,7 +39,7 @@ object ShooterConstants {
     val flywheelKs by SelectableDouble(0.134, 0.0) // volts
     val flywheelKv by SelectableDouble(0.0738467, 0.0) // volts / rev/s
 
-    val flywheelKp by SelectableDouble(0.001, 0.0) // SPARK MAX p unit
+    val flywheelKp by SelectableDouble(0.0015, 0.0) // SPARK MAX p unit
     val flywheelKd by SelectableDouble(0.0, 0.0) // SPARK MAX d unit
 
     //Profiled acceleration ramp of the flywheel
