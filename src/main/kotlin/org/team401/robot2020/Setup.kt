@@ -10,7 +10,9 @@ import org.snakeskin.registry.RealTimeTasks
 import org.snakeskin.rt.RealTimeTask
 import org.snakeskin.runtime.SnakeskinPlatform
 import org.snakeskin.runtime.SnakeskinRuntime
+import org.snakeskin.utility.value.SelectableValue
 import org.team401.robot2020.auto.InfiniteRechargeAuto
+import org.team401.robot2020.config.constants.RobotConstants
 import org.team401.robot2020.control.robot.RobotState
 import org.team401.robot2020.control.robot.TurretLimelight
 import org.team401.robot2020.subsystems.*
@@ -28,7 +30,9 @@ import javax.imageio.ImageIO
 
 @Setup
 fun setup() {
-    SnakeskinRuntime.createRealTimeExecutor(0.01._s)
+    SelectableValue.selected = RobotConstants.COMP_INDEX
+
+    SnakeskinRuntime.createRealTimeExecutor(RobotConstants.rtPeriod)
     Controllers.add(HumanControllers.gamePad)
     //Subsystems.add(DrivetrainSubsystem)
     //RealTimeTasks.add(OdometryTracker(DrivetrainSubsystem))

@@ -14,7 +14,7 @@ object CANDevices {
 
     //Ball subsystem
     val turretRotationMotor = PoweredCANDevice(1, 0) //SPARK MAX + NEO 550
-    val flyingVMotors = PoweredCANDevice(0, 0) //Victor SPX + 2 bag motors
+    val flyingVMotors = PoweredCANDevice(0, 0) //Talon SRX + 2 bag motors
     val towerMotor = PoweredCANDevice(2, 0) //SPARK MAX + NEO 550
     val intakeWheelsMotor = PoweredCANDevice(25, 0) //SPARK MAX + NEO 550
     val intakePivotMotor = PoweredCANDevice(4, 0) //SPARK MAX + NEO 550
