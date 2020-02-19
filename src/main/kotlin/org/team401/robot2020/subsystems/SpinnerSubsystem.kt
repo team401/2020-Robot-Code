@@ -56,7 +56,7 @@ object SpinnerSubsystem : Subsystem() {
             decelStartTime = 0.0.Seconds
         }
 
-        fun updateRotation(accel: AngularAccelerationMeasureRevolutionsPerSecondPerSecond) {
+        fun updateRotation(accel: AngularAccelerationMeasureRevolutionsPerSecondPerSecond): Boolean {
             val timestamp = readTimestamp()
             val decelDistance = rotationTarget.abs() - ((lastVelocity.value * lastVelocity.value) / (2.0 * accel.value)).Revolutions
             if ((spinnerGearbox.getAngularPosition() - startPosition).abs() >= decelDistance) {
@@ -69,7 +69,7 @@ object SpinnerSubsystem : Subsystem() {
                 spinnerGearbox.setPercentOutput(power * rotationTarget.sign())
                 if (power == 0.0) {
                     spinnerGearbox.stop()
-                    disable()
+                    return true
                 }
             } else {
                 val elapsedTime = (timestamp - startTime)
@@ -80,6 +80,7 @@ object SpinnerSubsystem : Subsystem() {
                 spinnerGearbox.setPercentOutput(power * rotationTarget.sign())
                 lastVelocity = speed
             }
+            return false
         }
 
         state(SpinnerStates.PositionObjective) {
@@ -98,7 +99,7 @@ object SpinnerSubsystem : Subsystem() {
             }
 
             action {
-                updateRotation(SpinnerConstants.positionAccel)
+                if (updateRotation(SpinnerConstants.positionAccel)) disable()
             }
         }
 
@@ -111,7 +112,7 @@ object SpinnerSubsystem : Subsystem() {
             }
 
             action {
-                updateRotation(SpinnerConstants.rotationAccel)
+                if (updateRotation(SpinnerConstants.rotationAccel)) disable()
             }
         }
 
