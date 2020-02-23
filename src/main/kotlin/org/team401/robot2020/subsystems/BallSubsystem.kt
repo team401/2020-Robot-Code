@@ -1,7 +1,10 @@
 package org.team401.robot2020.subsystems
 
+import com.ctre.phoenix.motorcontrol.NeutralMode
 import com.revrobotics.CANEncoder
 import com.revrobotics.CANSparkMax
+import com.revrobotics.CANSparkMaxLowLevel
+import edu.wpi.first.wpilibj.controller.ArmFeedforward
 import edu.wpi.first.wpilibj.controller.ProfiledPIDController
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 import edu.wpi.first.wpilibj.trajectory.TrapezoidProfile
@@ -13,13 +16,17 @@ import org.snakeskin.component.impl.NullTalonSrxDevice
 import org.snakeskin.component.impl.NullVictorSpxDevice
 import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
-import org.snakeskin.measure.Degrees
-import org.snakeskin.measure.Revolutions
-import org.snakeskin.measure.Seconds
+import org.snakeskin.measure.*
+import org.snakeskin.runtime.SnakeskinRuntime
 import org.snakeskin.subsystem.States
+import org.snakeskin.subsystem.SubsystemCheckContext
+import org.snakeskin.utility.value.AsyncBoolean
 import org.team401.robot2020.config.constants.BallConstants
 import org.team401.robot2020.config.CANDevices
 import org.team401.robot2020.config.DIOChannels
+import org.team401.robot2020.config.constants.RobotConstants
+import org.team401.robot2020.util.CharacterizationRoutine
+import org.team401.robot2020.util.LoggerSession
 import org.team401.robot2020.util.inverted
 
 /**
@@ -49,7 +56,7 @@ object BallSubsystem : Subsystem() {
         mockProducer = NullSparkMaxDevice.producer
     )
 
-    val intakePivotGearbox = SmartGearbox(intakePivotMotor)
+    private val intakePivotGearbox = SmartGearbox(intakePivotMotor)
 
     private val bottomGateSensor = Hardware.createDigitalInputChannel(
         DIOChannels.towerBottomGateSensor,
@@ -61,13 +68,40 @@ object BallSubsystem : Subsystem() {
         halMock = true
     ).inverted()
     //</editor-fold>
-/*
+
     enum class TowerStates {
         Waiting, //Default state, waiting for ball to trip the bottom gate
         Feeding, //Ball tripped gate, waiting for ball to clear bottom gate
         Spacing, //Timed state to advance ball forward to ensure proper spacing of the balls
         Reversing, //Top gate is on and bottom gate is off, reversing balls to ensure future spacing
-        Full //Tower is full (both top and bottom gate are on)
+        Full, //Tower is full (both top and bottom gate are on)
+        Shooting,
+        ManualReverse
+    }
+
+    enum class FlyingVStates {
+        Feed,
+        Reverse
+    }
+
+    val flyingVMachine: StateMachine<FlyingVStates> = stateMachine {
+        state(FlyingVStates.Feed) {
+            action {
+                //flyingVMotors.setPercentOutput(BallConstants.flyingVFeedPower)
+            }
+        }
+
+        state(FlyingVStates.Reverse) {
+            action {
+                //flyingVMotors.setPercentOutput(BallConstants.flyingVReversePower)
+            }
+        }
+
+        disabled {
+            action {
+                //flyingVMotors.stop()
+            }
+        }
     }
 
     val towerMachine: StateMachine<TowerStates> = stateMachine {
@@ -87,8 +121,12 @@ object BallSubsystem : Subsystem() {
         }
 
         state(TowerStates.Feeding) {
+            entry {
+                //flyingVMachine.setState(FlyingVStates.Reverse)
+            }
+
             action {
-                towerMotor.setPercentOutput(BallConstants.towerFeedingPower)
+                towerMotor.setAngularVelocitySetpoint(BallConstants.towerFeedingRate.toRevolutionsPerSecond())
 
                 val bottomState = bottomGateSensor.getState()
                 val topState = topGateSensor.getState()
@@ -96,7 +134,7 @@ object BallSubsystem : Subsystem() {
                 when {
                     (topState && bottomState) -> setState(TowerStates.Full) //Both gates triggered, tower is full
                     (topState) -> setState(TowerStates.Reversing) //Spacing is somehow off and a new ball is being entered
-                    (!bottomState) -> setState(TowerStates.Spacing) //New ball has entered the system
+                    (!bottomState) -> setState(TowerStates.Waiting) //New ball has entered the system
                 }
             }
         }
@@ -110,6 +148,10 @@ object BallSubsystem : Subsystem() {
         }
 
         state(TowerStates.Reversing) {
+            entry {
+                //flyingVMachine.setState(FlyingVStates.Reverse)
+            }
+
             action {
                 towerMotor.setPercentOutput(BallConstants.towerReversingPower)
 
@@ -122,6 +164,10 @@ object BallSubsystem : Subsystem() {
         }
 
         state(TowerStates.Full) {
+            entry {
+                //flyingVMachine.disable()
+            }
+
             action {
                 towerMotor.stop()
 
@@ -131,79 +177,111 @@ object BallSubsystem : Subsystem() {
                 if (!bottomState || !topState) setState(TowerStates.Waiting)
             }
         }
-    }*/
 
-    /*
-
-    enum class IntakeStates {
-        Intaking,
-        Waiting
-    }
-
-    val intakingMachine : StateMachine<IntakeStates> = stateMachine {
-        state(IntakeStates.Intaking) {
-           action {
-               intakeWheelsMotor.setPercentOutput(1.0)
-               println("intaking")
-
-           }
-        }
-
-        state(IntakeStates.Waiting) {
+        state(TowerStates.Shooting) {
             action {
-                intakeWheelsMotor.setPercentOutput(0.0)
-                println("waiting")
+                towerMotor.setPercentOutput(0.75)
             }
         }
 
+        state(TowerStates.Reversing) {
+            action {
+                towerMotor.setPercentOutput(-0.5)
+            }
+        }
     }
 
-     */
+    val armCharacterizationRoutine = CharacterizationRoutine(intakePivotGearbox, intakePivotGearbox)
 
-    private val armController = ProfiledPIDController(0.0, 0.0, 0.0,
-        TrapezoidProfile.Constraints(
-            (45.0.Degrees / .5.Seconds).toRevolutionsPerSecond().value,
-            (45.0.Degrees / .5.Seconds / .25.Seconds).toRevolutionsPerSecondPerSecond().value)
+    private val armModel = ArmFeedforward(
+        BallConstants.intakeArmKs,
+        BallConstants.intakeArmKcos,
+        BallConstants.intakeArmKv
     )
 
-    enum class ArmStates {
-        Move
+    private val armController = ProfiledPIDController(6.0, 0.0, 0.0,
+        TrapezoidProfile.Constraints(
+            (180.0.Degrees / .5.Seconds).toRadiansPerSecond().value,
+            (90.0.Degrees / .5.Seconds / .1.Seconds).toRadiansPerSecondPerSecond().value),
+        RobotConstants.rtPeriod.value
+    )
+
+    enum class IntakeStates {
+        Stow,
+        Intake
     }
 
-    val armMachine: StateMachine<ArmStates> = stateMachine {
-        state(ArmStates.Move) {
+    val intakeMachine: StateMachine<IntakeStates> = stateMachine {
+        state(IntakeStates.Stow) {
             entry {
-                armController.p = SmartDashboard.getNumber("arm_p", 0.0)
-                armController.reset(intakePivotGearbox.getAngularPosition().value)
+                armController.reset(intakePivotGearbox.getAngularPosition().toRadians().value)
             }
-            rtAction { timestamp, dt ->
-                val position = intakePivotGearbox.getAngularPosition().value
-                val volts = armController.calculate(position, (-80.0).Degrees.toRevolutions().value)
 
-                val out = volts / 12.0
+            rtAction { timestamp, dt ->
+                val position = intakePivotGearbox.getAngularPosition().toRadians().value
+                val feedbackVolts = armController.calculate(position, (0.0).Degrees.toRadians().value)
+                val ffVolts = armModel.calculate(armController.setpoint.position, armController.setpoint.velocity)
+
+                val out = (feedbackVolts + ffVolts) / 12.0
 
                 intakePivotGearbox.setPercentOutput(out)
+                intakeWheelsMotor.stop()
             }
         }
-    }
 
-    override fun action() {
-        println(intakePivotGearbox.getAngularPosition().toDegrees())
+        state(IntakeStates.Intake) {
+            entry {
+                armController.reset(intakePivotGearbox.getAngularPosition().toRadians().value)
+            }
+
+            rtAction { timestamp, dt ->
+                val position = intakePivotGearbox.getAngularPosition().toRadians().value
+                val feedbackVolts = armController.calculate(position, (-90.0).Degrees.toRadians().value)
+                val ffVolts = armModel.calculate(armController.setpoint.position, armController.setpoint.velocity)
+
+                val out = (feedbackVolts + ffVolts) / 12.0
+
+                intakePivotGearbox.setPercentOutput(out)
+                intakeWheelsMotor.setPercentOutput(1.0)
+            }
+        }
+
+        disabled {
+            action {
+                intakePivotGearbox.stop()
+                intakeWheelsMotor.stop()
+            }
+        }
     }
 
     override fun setup() {
         intakePivotGearbox.setAngularPosition(0.0.Revolutions)
 
+        useHardware(towerMotor) {
+            inverted = true
+            pidController.p = 0.00015
+        }
+
         useHardware(intakePivotMotor) {
             inverted = true
             idleMode = CANSparkMax.IdleMode.kBrake
             enableVoltageCompensation(12.0)
+            setPeriodicFramePeriod(CANSparkMaxLowLevel.PeriodicFrame.kStatus1, 10)
+            setPeriodicFramePeriod(CANSparkMaxLowLevel.PeriodicFrame.kStatus2, 10)
+        }
+
+        useHardware(flyingVMotors) {
+            setNeutralMode(NeutralMode.Brake)
+            inverted = true
         }
 
         on (Events.TELEOP_ENABLED) {
-            armMachine.setState(ArmStates.Move)
+            intakeMachine.setState(IntakeStates.Stow)
+            towerMachine.setState(TowerStates.Waiting)
         }
 
         SmartDashboard.putNumber("arm_p", 0.0)
+        SmartDashboard.putNumber("arm_d", 0.0)
+        SmartDashboard.putNumber("tower_p", 0.0)
     }
 }

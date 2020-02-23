@@ -1,9 +1,6 @@
 package org.team401.robot2020.config.constants
 
-import org.snakeskin.measure.Degrees
-import org.snakeskin.measure.Inches
-import org.snakeskin.measure.RevolutionsPerMinute
-import org.snakeskin.measure.Seconds
+import org.snakeskin.measure.*
 import org.snakeskin.utility.value.SelectableDouble
 import org.snakeskin.utility.value.SelectableValue
 import org.team401.taxis.geometry.Translation2d
@@ -27,21 +24,41 @@ object ShooterConstants {
     val turretCameraMountingHeightFar by SelectableValue(5.0.Inches, 5.0.Inches) //Height of the turret camera from the floor in far mode
 
     //Turret dynamics
-    val turretKs by SelectableDouble(0.230764, 0.0) // volts
-    val turretKv by SelectableDouble(0.799, 0.0) // volts / rad/s
+    val turretKs by SelectableDouble(0.236, 0.0) // volts
+    val turretKv by SelectableDouble(1.07, 0.0) // volts / rad/s
+    val turretKa by SelectableDouble(0.00497, 0.0) // volts / rad/s/s
 
-    val turretKp by SelectableDouble(15.0, 15.0) // volts / (rad error)
-    val turretKd by SelectableDouble(0.0, 0.0) // volts / (rad/s error)
+    val turretKp by SelectableDouble(30.0, 0.0) // volts / (rad error)
+    val turretKd by SelectableDouble(1.0, 0.0) // volts / (rad/s error)
+
+    val turretVelocity = (180.0.Degrees / 0.3.Seconds).toRadiansPerSecond()
+    val turretAccel = turretVelocity / 0.05.Seconds
+
+    val turretRatio = 190.0 / 18.0 // Total reduction from gearbox shaft to turret axis
 
     //Flywheel dynamics
     val flywheelRatio = 18.0 / 30.0 // Total reduction of motor to flywheel shaft
 
-    val flywheelKs by SelectableDouble(0.134, 0.0) // volts
-    val flywheelKv by SelectableDouble(0.0738467, 0.0) // volts / rev/s
+    val flywheelKs by SelectableDouble(0.216, 0.0) // volts
+    val flywheelKv by SelectableDouble(0.0128, 0.0) // volts / rev/s
+    val flywheelKa by SelectableDouble(0.00429, 0.0) //volts / rad/s/s
 
-    val flywheelKp by SelectableDouble(0.0015, 0.0) // SPARK MAX p unit
-    val flywheelKd by SelectableDouble(0.0, 0.0) // SPARK MAX d unit
+    val flywheelKp by SelectableDouble(0.07, 0.0) // SPARK MAX p unit
+
+    val flywheelMaxVelocity = 9000.0.RevolutionsPerMinute.toRadiansPerSecond()
 
     //Profiled acceleration ramp of the flywheel
-    val flywheelRampAcceleration = (8000.0.RevolutionsPerMinute / 2.0.Seconds).toRevolutionsPerSecondPerSecond()
+    val flywheelRampAcceleration = (8000.0.RevolutionsPerMinute / 2.0.Seconds).toRadiansPerSecondPerSecond()
+
+    //Default speed for the flywheel to spin at
+    val flywheelDefaultSpeed = (9000.0.RevolutionsPerMinute).toRadiansPerSecond()
+
+    //Rate to bump the flywheel speed up or down by
+    val flywheelBump = 10.0.RevolutionsPerSecond.toRadiansPerSecond()
+
+    //LUT and regression
+    val flywheelLUT = arrayOf(
+        doubleArrayOf(0.0, 0.0),
+        doubleArrayOf(1.0, 10.0)
+    )
 }

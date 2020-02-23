@@ -1,13 +1,17 @@
 package org.team401.robot2020.subsystems
 
+import com.revrobotics.CANSparkMax
 import edu.wpi.first.wpilibj.controller.ElevatorFeedforward
 import edu.wpi.first.wpilibj.controller.PIDController
 import edu.wpi.first.wpilibj.controller.ProfiledPIDController
 import edu.wpi.first.wpilibj.controller.SimpleMotorFeedforward
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 import edu.wpi.first.wpilibj.trajectory.TrapezoidProfile
 import org.snakeskin.component.Gearbox
 import org.snakeskin.component.LinearTransmission
 import org.snakeskin.component.SparkMaxOutputVoltageReadingMode
+import org.snakeskin.component.impl.NullCanCoderDevice
+import org.snakeskin.component.impl.NullPneumaticChannel
 import org.snakeskin.component.impl.NullSparkMaxDevice
 import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
@@ -17,10 +21,13 @@ import org.snakeskin.measure.distance.linear.LinearDistanceMeasureInches
 import org.snakeskin.runtime.SnakeskinRuntime
 import org.snakeskin.utility.Ticker
 import org.snakeskin.utility.value.AsyncBoolean
+import org.snakeskin.utility.value.AsyncValue
 import org.team401.robot2020.config.CANDevices
 import org.team401.robot2020.config.PneumaticDevices
 import org.team401.robot2020.config.constants.ClimbingConstants
 import org.team401.robot2020.config.constants.RobotConstants
+import org.team401.robot2020.util.CharacterizationRoutine
+import org.team401.robot2020.util.getAcceleration
 import kotlin.math.tan
 import kotlin.time.milliseconds
 
@@ -37,10 +44,20 @@ object ClimbingSubsystem : Subsystem() {
         mockProducer = NullSparkMaxDevice.producer
     )
 
-    private val climbLeftElevatorEncoder = Hardware.createCANCoder(CANDevices.climbLeftElevatorEncoder)
-    private val climbRightElevatorEncoder = Hardware.createCANCoder(CANDevices.climbRightElevatorEncoder)
+    private val climbLeftElevatorEncoder = Hardware.createCANCoder(
+        CANDevices.climbLeftElevatorEncoder,
+        mockProducer = NullCanCoderDevice.producer
+    )
+    private val climbRightElevatorEncoder = Hardware.createCANCoder(
+        CANDevices.climbRightElevatorEncoder,
+        mockProducer = NullCanCoderDevice.producer
+    )
 
-    private val lockingPiston = Hardware.createPneumaticChannel(PneumaticDevices.climbingLock, PneumaticDevices.climbingLock)
+    private val lockingPiston = NullPneumaticChannel.INSTANCE/*= Hardware.createPneumaticChannel(
+        PneumaticDevices.climbingLock,
+        halMock = true
+    )
+    */
 
     private val leftElevator = LinearTransmission(Gearbox(climbLeftElevatorEncoder, climbLeftElevatorMotor), ClimbingConstants.pitchRadius)
     private val rightElevator = LinearTransmission(Gearbox(climbRightElevatorEncoder, climbRightElevatorMotor), ClimbingConstants.pitchRadius)
@@ -50,37 +67,44 @@ object ClimbingSubsystem : Subsystem() {
     private val leftElevatorModel = ElevatorFeedforward(
         ClimbingConstants.leftElevatorKs,
         ClimbingConstants.leftElevatorKg,
-        ClimbingConstants.leftElevatorKv
+        ClimbingConstants.leftElevatorKv,
+        ClimbingConstants.leftElevatorKa
     )
 
     private val rightElevatorModel = ElevatorFeedforward(
         ClimbingConstants.rightElevatorKs,
         ClimbingConstants.rightElevatorKg,
-        ClimbingConstants.rightElevatorKv
+        ClimbingConstants.rightElevatorKv,
+        ClimbingConstants.rightElevatorKa
+    )
+
+    private val elevatorConstraints = TrapezoidProfile.Constraints(
+        ClimbingConstants.maxAngularVelocity.value,
+        ClimbingConstants.maxAngularAccel.value
     )
     
     private val leftElevatorController = ProfiledPIDController(
         ClimbingConstants.leftElevatorKp,
         0.0, 0.0,
-        TrapezoidProfile.Constraints(
-            ClimbingConstants.maxAngularVelocity.value,
-            ClimbingConstants.maxAngularAccel.value
-        ),
+        elevatorConstraints,
         RobotConstants.rtPeriod.value
     )
 
     private val rightElevatorController = ProfiledPIDController(
         ClimbingConstants.rightElevatorKp,
         0.0, 0.0,
-        TrapezoidProfile.Constraints(
-            ClimbingConstants.maxAngularVelocity.value,
-            ClimbingConstants.maxAngularAccel.value
-        ),
+        elevatorConstraints,
         RobotConstants.rtPeriod.value
     )
 
+    private var lastLeftElevatorSetpoint = TrapezoidProfile.State()
+    private var lastRightElevatorSetpoint = TrapezoidProfile.State()
+
     private val leftElevatorJogController = PIDController(ClimbingConstants.leftElevatorKp, 0.0, 0.0)
     private val rightElevatorJogController = PIDController(ClimbingConstants.rightElevatorKp, 0.0, 0.0)
+
+    val leftElevatorCharacterizationRoutine = CharacterizationRoutine(leftElevator.gearbox, leftElevator.gearbox)
+    val rightElevatorCharacterizationRoutine = CharacterizationRoutine(rightElevator.gearbox, rightElevator.gearbox)
     //</editor-fold>
 
     private fun resetClimberPosition() {
@@ -94,8 +118,12 @@ object ClimbingSubsystem : Subsystem() {
     private fun updateLeftElevator(target: LinearDistanceMeasureInches) {
         val angularTarget = target.toAngularDistance(ClimbingConstants.pitchRadius)
         
-        val feedbackVolts = leftElevatorController.calculate(leftElevator.gearbox.getAngularPosition().value, angularTarget.value)
-        val ffVolts = leftElevatorModel.calculate(leftElevatorController.setpoint.velocity)
+        val feedbackVolts = leftElevatorController.calculate(leftElevator.gearbox.getAngularPosition().toRadians().value, angularTarget.value)
+        val ffVolts = leftElevatorModel.calculate(
+            leftElevatorController.setpoint.velocity,
+            leftElevatorController.getAcceleration(elevatorConstraints, lastLeftElevatorSetpoint)
+        )
+        lastLeftElevatorSetpoint = leftElevatorController.setpoint
 
         leftElevator.gearbox.setPercentOutput((feedbackVolts + ffVolts) / 12.0)
     }
@@ -106,8 +134,12 @@ object ClimbingSubsystem : Subsystem() {
     private fun updateRightElevator(target: LinearDistanceMeasureInches) {
         val angularTarget = target.toAngularDistance(ClimbingConstants.pitchRadius)
 
-        val feedbackVolts = rightElevatorController.calculate(rightElevator.gearbox.getAngularPosition().value, angularTarget.value)
-        val ffVolts = rightElevatorModel.calculate(rightElevatorController.setpoint.velocity)
+        val feedbackVolts = rightElevatorController.calculate(rightElevator.gearbox.getAngularPosition().toRadians().value, angularTarget.value)
+        val ffVolts = rightElevatorModel.calculate(
+            rightElevatorController.setpoint.velocity,
+            rightElevatorController.getAcceleration(elevatorConstraints, lastRightElevatorSetpoint)
+        )
+        lastRightElevatorSetpoint = rightElevatorController.setpoint
 
         rightElevator.gearbox.setPercentOutput((feedbackVolts + ffVolts) / 12.0)
     }
@@ -124,8 +156,10 @@ object ClimbingSubsystem : Subsystem() {
      * Resets the profiled controllers
      */
     private fun resetProfiles() {
-        leftElevatorController.reset(leftElevator.gearbox.getAngularPosition().value)
-        rightElevatorController.reset(rightElevator.gearbox.getAngularPosition().value)
+        leftElevatorController.reset(leftElevator.gearbox.getAngularPosition().toRadians().value)
+        rightElevatorController.reset(rightElevator.gearbox.getAngularPosition().toRadians().value)
+        lastLeftElevatorSetpoint = TrapezoidProfile.State()
+        lastRightElevatorSetpoint = TrapezoidProfile.State()
     }
 
     /**
@@ -160,9 +194,9 @@ object ClimbingSubsystem : Subsystem() {
 
         val angularTarget = jogPosition.toAngularDistance(ClimbingConstants.pitchRadius)
 
-        val leftFeedbackVolts = leftElevatorJogController.calculate(leftElevator.gearbox.getAngularPosition().value, angularTarget.value)
+        val leftFeedbackVolts = leftElevatorJogController.calculate(leftElevator.gearbox.getAngularPosition().toRadians().value, angularTarget.value)
         val leftFfVolts = leftElevatorModel.calculate(velocity.value)
-        val rightFeedbackVolts = rightElevatorJogController.calculate(rightElevator.gearbox.getAngularPosition().value, angularTarget.value)
+        val rightFeedbackVolts = rightElevatorJogController.calculate(rightElevator.gearbox.getAngularPosition().toRadians().value, angularTarget.value)
         val rightFfVolts = rightElevatorModel.calculate(velocity.value)
 
         leftElevator.gearbox.setPercentOutput((leftFeedbackVolts + leftFfVolts) / 12.0)
@@ -184,6 +218,7 @@ object ClimbingSubsystem : Subsystem() {
         private set
 
     enum class ClimbingStates {
+        Test,
         Homing,
         Deploying,
         JogUp,
@@ -194,8 +229,22 @@ object ClimbingSubsystem : Subsystem() {
         Locked
     }
 
+    var climbingSetpoint by AsyncValue(0.0.Inches)
+
 
     val climbingMachine: StateMachine<ClimbingStates> = stateMachine {
+        state(ClimbingStates.Test) {
+            entry {
+                leftElevatorController.p = SmartDashboard.getNumber("climb_p", 0.0)
+                rightElevatorController.p = SmartDashboard.getNumber("climb_p", 0.0)
+                resetProfiles()
+            }
+
+            rtAction { timestamp, dt ->
+                update(climbingSetpoint)
+            }
+        }
+
         state(ClimbingStates.Homing) {
             val homingTicker = Ticker(
                 {
@@ -353,22 +402,41 @@ object ClimbingSubsystem : Subsystem() {
         leftElevatorController.setTolerance(ClimbingConstants.positionTolerance.toAngularDistance(ClimbingConstants.pitchRadius).value)
         rightElevatorController.setTolerance(ClimbingConstants.positionTolerance.toAngularDistance(ClimbingConstants.pitchRadius).value)
 
+        leftElevator.gearbox.invertInput(true)
+        leftElevator.gearbox.invertOutput(false)
+
+        rightElevator.gearbox.invertInput(false)
+        rightElevator.gearbox.invertOutput(true)
+
         useHardware(climbRightElevatorMotor) {
             enableVoltageCompensation(12.0)
+            idleMode = CANSparkMax.IdleMode.kCoast
         }
 
         useHardware(climbLeftElevatorMotor) {
             enableVoltageCompensation(12.0)
+            idleMode = CANSparkMax.IdleMode.kCoast
         }
 
         resetClimberPosition()
 
+        SmartDashboard.putNumber("climb_p", 0.0)
+
+        /*
         on(Events.ENABLED) {
+            homed = true
+            climbingMachine.setState(ClimbingStates.Deploying)
             if (!homed) {
                 climbingMachine.setState(ClimbingStates.Homing)
             } else {
                 climbingMachine.disable()
             }
+        }
+
+         */
+
+        on(Events.TELEOP_ENABLED) {
+            climbingMachine.setState(ClimbingStates.Test)
         }
     }
 }
