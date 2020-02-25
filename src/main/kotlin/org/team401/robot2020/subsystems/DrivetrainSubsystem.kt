@@ -3,10 +3,12 @@ import com.ctre.phoenix.motorcontrol.ControlFrame
 import com.ctre.phoenix.motorcontrol.InvertType
 import com.ctre.phoenix.motorcontrol.NeutralMode
 import com.ctre.phoenix.motorcontrol.StatusFrame
+import com.revrobotics.CANSparkMax
 import edu.wpi.first.wpilibj.controller.PIDController
 import edu.wpi.first.wpilibj.controller.SimpleMotorFeedforward
 import org.snakeskin.component.Gearbox
 import org.snakeskin.component.impl.NullPigeonImuDevice
+import org.snakeskin.component.impl.NullSparkMaxDevice
 import org.snakeskin.component.impl.NullTalonFxDevice
 import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
@@ -25,21 +27,21 @@ import org.team401.taxis.geometry.Pose2d
 
 object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
     //<editor-fold desc="Hardware Devices">
-    private val leftMaster = Hardware.createTalonFX(
+    private val leftMaster = Hardware.createBrushlessSparkMax(
         CANDevices.driveLeftFrontMotor.canID,
-        mockProducer = NullTalonFxDevice.producer
+        mockProducer = NullSparkMaxDevice.producer
     )
-    private val leftSlave = Hardware.createTalonFX(
+    private val leftSlave = Hardware.createBrushlessSparkMax(
         CANDevices.driveLeftRearMotor.canID,
-        mockProducer = NullTalonFxDevice.producer
+        mockProducer = NullSparkMaxDevice.producer
     )
-    private val rightMaster = Hardware.createTalonFX(
+    private val rightMaster = Hardware.createBrushlessSparkMax(
         CANDevices.driveRightFrontMotor.canID,
-        mockProducer = NullTalonFxDevice.producer
+        mockProducer = NullSparkMaxDevice.producer
     )
-    private val rightSlave = Hardware.createTalonFX(
+    private val rightSlave = Hardware.createBrushlessSparkMax(
         CANDevices.driveRightRearMotor.canID,
-        mockProducer = NullTalonFxDevice.producer
+        mockProducer = NullSparkMaxDevice.producer
     )
 
     override val yawSensor = Hardware.createCANPigeonIMU(
@@ -160,59 +162,44 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
 
         useHardware(leftMaster) {
             inverted = true
-            setNeutralMode(NeutralMode.Brake)
-            configOpenloopRamp(0.0)
-            configNeutralDeadband(0.0)
-            setControlFramePeriod(ControlFrame.Control_3_General, 5)
-            setStatusFramePeriod(StatusFrame.Status_1_General, 5)
-            enableVoltageCompensation(true)
-            configVoltageCompSaturation(12.0)
+            setIdleMode(CANSparkMax.IdleMode.kBrake)
+            setOpenLoopRampRate(0.0)
+            enableVoltageCompensation(12.0)
+
         }
         useHardware(leftSlave) {
-            setInverted(InvertType.FollowMaster)
-            setNeutralMode(NeutralMode.Brake)
-            setStatusFramePeriod(StatusFrame.Status_1_General, Int.MAX_VALUE)
-            setStatusFramePeriod(StatusFrame.Status_2_Feedback0, Int.MAX_VALUE)
+
         }
         useHardware(rightMaster) {
             inverted = false
-            setNeutralMode(NeutralMode.Brake)
-            configOpenloopRamp(0.0)
-            configNeutralDeadband(0.0)
-            setControlFramePeriod(ControlFrame.Control_3_General, 5)
-            setStatusFramePeriod(StatusFrame.Status_1_General, 5)
-            enableVoltageCompensation(true)
-            configVoltageCompSaturation(12.0)
+            setIdleMode(CANSparkMax.IdleMode.kBrake)
+            setOpenLoopRampRate(0.0)
+            enableVoltageCompensation(12.0)
         }
         useHardware(rightSlave) {
-            setInverted(InvertType.FollowMaster)
-            setNeutralMode(NeutralMode.Brake)
-            setStatusFramePeriod(StatusFrame.Status_1_General, Int.MAX_VALUE)
-            setStatusFramePeriod(StatusFrame.Status_2_Feedback0, Int.MAX_VALUE)
+
         }
     }
 
     private fun configForAutoDriving() {
         useHardware(leftMaster) {
-            configOpenloopRamp(0.0)
-            configNeutralDeadband(0.0)
+            setOpenLoopRampRate(0.0)
         }
 
         useHardware(rightMaster) {
-            configOpenloopRamp(0.0)
-            configNeutralDeadband(0.0)
+            setOpenLoopRampRate(0.0)
         }
     }
 
     private fun configForTeleopDriving() {
         useHardware(leftMaster) {
-            configOpenloopRamp(0.25)
-            configNeutralDeadband(0.05)
+            setOpenLoopRampRate(.25)
+
         }
 
         useHardware(rightMaster) {
-            configOpenloopRamp(0.25)
-            configNeutralDeadband(0.05)
+            setOpenLoopRampRate(.25)
+
         }
     }
     //</editor-fold>

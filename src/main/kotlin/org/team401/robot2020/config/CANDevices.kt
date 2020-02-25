@@ -3,11 +3,11 @@ package org.team401.robot2020.config
 object CANDevices {
     data class PoweredCANDevice(val canID: Int, val pdpChannel: Int)
 
-    //All drive motors are Talon FX
-    val driveLeftFrontMotor = PoweredCANDevice(0, 0)
-    val driveLeftRearMotor = PoweredCANDevice(1, 0)
-    val driveRightFrontMotor = PoweredCANDevice(2, 0)
-    val driveRightRearMotor = PoweredCANDevice(3, 0)
+    //All drive motors are NEO motors powered by Spark Max Devices
+    val driveLeftFrontMotor = PoweredCANDevice(15, 0)
+    val driveLeftRearMotor = PoweredCANDevice(16, 0)
+    val driveRightFrontMotor = PoweredCANDevice(17, 0)
+    val driveRightRearMotor = PoweredCANDevice(18, 0)
 
     //Pigeon IMU CAN ID
     const val pigeon = 0
