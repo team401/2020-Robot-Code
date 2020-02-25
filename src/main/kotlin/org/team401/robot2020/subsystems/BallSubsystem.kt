@@ -141,7 +141,7 @@ object BallSubsystem : Subsystem() {
             }
 
             action {
-                towerMotor.setAngularVelocitySetpoint(BallConstants.towerFeedingRate.toRevolutionsPerSecond())
+                towerMotor.setAngularVelocitySetpoint(BallConstants.towerFeedingRate.toRadiansPerSecond())
 
                 val bottomState = bottomGateSensor.getState()
                 val topState = topGateSensor.getState()
@@ -304,7 +304,7 @@ object BallSubsystem : Subsystem() {
             inverted = true
         }
 
-        intakeArmGearbox.setAngularPosition(0.0.Revolutions)
+        intakeArmGearbox.setAngularPosition(0.0.Radians)
 
         on (Events.ENABLED) {
             towerMachine.setState(TowerStates.Waiting)

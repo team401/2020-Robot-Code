@@ -44,7 +44,7 @@ dependencies {
 }
 
 snakeskin {
-    version = "3.0beta11c"
+    version = "3.0beta12"
     modules {
         core()
         frc()

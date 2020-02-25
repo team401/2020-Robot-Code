@@ -7,7 +7,9 @@ import org.snakeskin.measure.*
 import com.revrobotics.ColorSensorV3
 import edu.wpi.first.wpilibj.I2C
 import org.snakeskin.component.SmartGearbox
+import org.snakeskin.measure.acceleration.angular.AngularAccelerationMeasureRadiansPerSecondPerSecond
 import org.snakeskin.measure.acceleration.angular.AngularAccelerationMeasureRevolutionsPerSecondPerSecond
+import org.snakeskin.measure.distance.angular.AngularDistanceMeasureRadians
 import org.snakeskin.measure.distance.angular.AngularDistanceMeasureRevolutions
 import org.team401.robot2020.config.CANDevices
 import org.team401.robot2020.control.spinner.*
@@ -42,29 +44,29 @@ object SpinnerSubsystem : Subsystem() {
     }
 
     val spinnerMachine: StateMachine<SpinnerStates> = stateMachine() {
-        var rotationTarget = 0.0.Revolutions
+        var rotationTarget = 0.0.Radians
         var startTime = 0.0.Seconds
-        var startPosition = 0.0.Revolutions
-        var lastVelocity = 0.0._rev_per_s
+        var startPosition = 0.0.Radians
+        var lastVelocity = 0.0._rad_per_s
         var decelStartTime = 0.0.Seconds
 
-        fun beginRotation(target: AngularDistanceMeasureRevolutions) {
+        fun beginRotation(target: AngularDistanceMeasureRadians) {
             rotationTarget = target
             startTime = readTimestamp()
             startPosition = spinnerGearbox.getAngularPosition()
-            lastVelocity = 0.0._rev_per_s
+            lastVelocity = 0.0._rad_per_s
             decelStartTime = 0.0.Seconds
         }
 
-        fun updateRotation(accel: AngularAccelerationMeasureRevolutionsPerSecondPerSecond): Boolean {
+        fun updateRotation(accel: AngularAccelerationMeasureRadiansPerSecondPerSecond): Boolean {
             val timestamp = readTimestamp()
-            val decelDistance = rotationTarget.abs() - ((lastVelocity.value * lastVelocity.value) / (2.0 * accel.value)).Revolutions
+            val decelDistance = rotationTarget.abs() - ((lastVelocity.value * lastVelocity.value) / (2.0 * accel.value)).Radians
             if ((spinnerGearbox.getAngularPosition() - startPosition).abs() >= decelDistance) {
                 if (decelStartTime == 0.0.Seconds) {
                     decelStartTime = timestamp
                 }
                 val elapsedTime = (timestamp - decelStartTime)
-                val speed = (lastVelocity - (accel * elapsedTime)).coerceAtLeast(0.0._rev_per_s)
+                val speed = (lastVelocity - (accel * elapsedTime)).coerceAtLeast(0.0._rad_per_s)
                 val power = speed / SpinnerConstants.maxFreeSpeed
                 spinnerGearbox.setPercentOutput(power * rotationTarget.sign())
                 if (power == 0.0) {
@@ -92,7 +94,7 @@ object SpinnerSubsystem : Subsystem() {
                 val matchResult = colorMatcher.matchClosestColor(detectedColor)
                 currentColor = SpinnerAlgorithms.matchColor(matchResult)
 
-                val desired = SpinnerAlgorithms.calculateSpinnerRotation(currentColor, desiredColor).toRevolutions()
+                val desired = SpinnerAlgorithms.calculateSpinnerRotation(currentColor, desiredColor).toRadians()
                 beginRotation(desired)
                 //pusherPiston.set(true)
                 delay(SpinnerConstants.deployDelay)

@@ -13,7 +13,7 @@ import org.team401.taxis.diffdrive.odometry.OdometryTracker
 
 @Setup
 fun setup() {
-    SelectableValue.selected = RobotConstants.PRACTICE_INDEX
+    SelectableValue.selected = RobotConstants.COMP_INDEX
     SnakeskinRuntime.createRealTimeExecutor(RobotConstants.rtPeriod)
 
     Controllers.add(HumanControllers.leftStick, HumanControllers.rightStick, HumanControllers.gamePad)

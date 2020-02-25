@@ -331,7 +331,7 @@ object ShooterSubsystem: Subsystem() {
             enableVoltageCompensation(12.0)
         }
 
-        turretRotationGearbox.setAngularPosition(0.0.Revolutions)
+        turretRotationGearbox.setAngularPosition(0.0.Radians)
         turretController.setTolerance(2.0.Degrees.toRadians().value)
 
         on (Events.ENABLED) {

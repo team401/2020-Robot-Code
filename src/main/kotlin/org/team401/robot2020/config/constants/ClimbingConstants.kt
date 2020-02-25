@@ -37,7 +37,7 @@ object ClimbingConstants {
     val positionTolerance = 1.0.Inches
 
     const val homingPower = -.25
-    val homingVelocityThreshold = 0.01.RevolutionsPerSecond
+    val homingVelocityThreshold = 0.01.RadiansPerSecond
     val homingTime = 0.1.Seconds
 
     //Heights

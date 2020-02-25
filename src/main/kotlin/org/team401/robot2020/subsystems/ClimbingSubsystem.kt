@@ -386,10 +386,10 @@ object ClimbingSubsystem : Subsystem() {
         rightElevatorController.setTolerance(ClimbingConstants.positionTolerance.toAngularDistance(ClimbingConstants.pitchRadius).value)
 
         leftElevator.gearbox.invertInput(true)
-        leftElevator.gearbox.invertOutput(false)
+        leftElevator.gearbox.invert(false)
 
         rightElevator.gearbox.invertInput(false)
-        rightElevator.gearbox.invertOutput(true)
+        rightElevator.gearbox.invert(true)
 
         useHardware(climbRightElevatorMotor) {
             enableVoltageCompensation(12.0)

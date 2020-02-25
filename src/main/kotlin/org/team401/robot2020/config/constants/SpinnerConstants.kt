@@ -24,13 +24,13 @@ object SpinnerConstants {
     val effectiveRatio = spinnerControlPanelRatio * gearboxRatio //Total reduction from motor to control panel
 
     //Max theoretical free speed of the control panel, used as a rudimentary "Kv" constant to convert velocity to voltage
-    val maxFreeSpeed = (11000.0._rev_per_min).toRevolutionsPerSecond() / effectiveRatio._ul
+    val maxFreeSpeed = (11000.0._rev_per_min).toRadiansPerSecond() / effectiveRatio._ul
 
     //Profile constants (in terms of control panel velocity!)
-    val cruiseVelocity = 0.75._rev_per_s
-    val rotationAccel = 0.5._rev_per_s_per_s //Acceleration for rotation objective
-    val positionAccel = 0.1._rev_per_s_per_s //Acceleration for position objective
-    val rotationDistance = 4.0.Revolutions //Number of rotations for rotation objective
+    val cruiseVelocity = 0.75._rev_per_s.toRadiansPerSecond()
+    val rotationAccel = 0.5._rev_per_s_per_s.toRadiansPerSecondPerSecond() //Acceleration for rotation objective
+    val positionAccel = 0.1._rev_per_s_per_s.toRadiansPerSecondPerSecond() //Acceleration for position objective
+    val rotationDistance = 4.0.Revolutions.toRadians() //Number of rotations for rotation objective
 
     //Time to wait before spinning to allow the piston to deploy
     val deployDelay = 0.1.Seconds
