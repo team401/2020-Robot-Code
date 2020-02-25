@@ -6,6 +6,7 @@ import org.snakeskin.measure.acceleration.angular.AngularAccelerationMeasureRevo
 import org.snakeskin.measure.time.TimeMeasureSeconds
 import org.snakeskin.measure.velocity.angular.AngularVelocityMeasureRadiansPerSecond
 import org.snakeskin.measure.velocity.angular.AngularVelocityMeasureRevolutionsPerSecond
+import org.snakeskin.utility.value.AsyncBoolean
 
 /**
  * Implements a simple linear velocity ramp for controlling simple systems such as a flywheel.
@@ -22,6 +23,8 @@ class VelocityProfiler(private val acceleration: AngularAccelerationMeasureRadia
      */
     var accelerationCommand = 0.0.RadiansPerSecondPerSecond
         private set
+
+    var atSetpoint by AsyncBoolean(false)
 
     /**
      * Resets the velocity command to the given value, and zeroes the acceleration

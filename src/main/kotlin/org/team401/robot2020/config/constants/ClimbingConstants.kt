@@ -30,7 +30,7 @@ object ClimbingConstants {
     val maxAccel = maxVelocity / 0.15.Seconds
     val maxAngularAccel = maxAccel.toAngularAcceleration(pitchRadius)
 
-    val jogRate = 1.0.InchesPerSecond
+    val jogRate = 10.0.InchesPerSecond
 
     val lockPistonDelay = 0.1.Seconds
 
@@ -40,10 +40,9 @@ object ClimbingConstants {
     val homingVelocityThreshold = 0.01.RevolutionsPerSecond
     val homingTime = 0.1.Seconds
 
-
     //Heights
     val minHeight = 1.0.Inches
-    val maxHeight = 38.0.Inches
+    val maxHeight = 34.0.Inches
     val deployHeight = 10.0.Inches
-    val climbingHeight = 20.0.Inches
+    val climbingHeight = 1.0.Inches
 }

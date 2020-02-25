@@ -53,11 +53,10 @@ object ClimbingSubsystem : Subsystem() {
         mockProducer = NullCanCoderDevice.producer
     )
 
-    private val lockingPiston = NullPneumaticChannel.INSTANCE/*= Hardware.createPneumaticChannel(
+    private val lockingPiston= Hardware.createPneumaticChannel(
         PneumaticDevices.climbingLock,
         halMock = true
     )
-    */
 
     private val leftElevator = LinearTransmission(Gearbox(climbLeftElevatorEncoder, climbLeftElevatorMotor), ClimbingConstants.pitchRadius)
     private val rightElevator = LinearTransmission(Gearbox(climbRightElevatorEncoder, climbRightElevatorMotor), ClimbingConstants.pitchRadius)
@@ -218,7 +217,6 @@ object ClimbingSubsystem : Subsystem() {
         private set
 
     enum class ClimbingStates {
-        Test,
         Homing,
         Deploying,
         JogUp,
@@ -229,22 +227,7 @@ object ClimbingSubsystem : Subsystem() {
         Locked
     }
 
-    var climbingSetpoint by AsyncValue(0.0.Inches)
-
-
     val climbingMachine: StateMachine<ClimbingStates> = stateMachine {
-        state(ClimbingStates.Test) {
-            entry {
-                leftElevatorController.p = SmartDashboard.getNumber("climb_p", 0.0)
-                rightElevatorController.p = SmartDashboard.getNumber("climb_p", 0.0)
-                resetProfiles()
-            }
-
-            rtAction { timestamp, dt ->
-                update(climbingSetpoint)
-            }
-        }
-
         state(ClimbingStates.Homing) {
             val homingTicker = Ticker(
                 {
@@ -410,33 +393,24 @@ object ClimbingSubsystem : Subsystem() {
 
         useHardware(climbRightElevatorMotor) {
             enableVoltageCompensation(12.0)
-            idleMode = CANSparkMax.IdleMode.kCoast
+            idleMode = CANSparkMax.IdleMode.kBrake
         }
 
         useHardware(climbLeftElevatorMotor) {
             enableVoltageCompensation(12.0)
-            idleMode = CANSparkMax.IdleMode.kCoast
+            idleMode = CANSparkMax.IdleMode.kBrake
         }
 
         resetClimberPosition()
 
-        SmartDashboard.putNumber("climb_p", 0.0)
-
-        /*
         on(Events.ENABLED) {
             homed = true
-            climbingMachine.setState(ClimbingStates.Deploying)
+            climbingMachine.disable()
             if (!homed) {
                 climbingMachine.setState(ClimbingStates.Homing)
             } else {
                 climbingMachine.disable()
             }
-        }
-
-         */
-
-        on(Events.TELEOP_ENABLED) {
-            climbingMachine.setState(ClimbingStates.Test)
         }
     }
 }

@@ -51,7 +51,7 @@ object ShooterConstants {
     val flywheelRampAcceleration = (8000.0.RevolutionsPerMinute / 2.0.Seconds).toRadiansPerSecondPerSecond()
 
     //Default speed for the flywheel to spin at
-    val flywheelDefaultSpeed = (9000.0.RevolutionsPerMinute).toRadiansPerSecond()
+    val flywheelDefaultSpeed = (6000.0.RevolutionsPerMinute).toRadiansPerSecond()
 
     //Rate to bump the flywheel speed up or down by
     val flywheelBump = 10.0.RevolutionsPerSecond.toRadiansPerSecond()

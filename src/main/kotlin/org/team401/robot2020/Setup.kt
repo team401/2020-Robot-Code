@@ -14,17 +14,12 @@ import org.team401.taxis.diffdrive.odometry.OdometryTracker
 @Setup
 fun setup() {
     SelectableValue.selected = RobotConstants.COMP_INDEX
-
     SnakeskinRuntime.createRealTimeExecutor(RobotConstants.rtPeriod)
-    //AutoManager.setAutoLoop(BallSubsystem.armCharacterizationRoutine.loop)
-    //AutoManager.setAutoLoop(ClimbingSubsystem.rightElevatorCharacterizationRoutine.loop)
-    //AutoManager.setAutoLoop(ShooterSubsystem.turretCharacterizationRoutine.loop)
-    //AutoManager.setAutoLoop(ShooterSubsystem.shooterCharacterizationRoutine.loop)
-    //Controllers.add(HumanControllers.gamePad)
-    Controllers.add(HumanControllers.leftStick, HumanControllers.rightStick)
-    Subsystems.add(DrivetrainSubsystem, ShooterSubsystem)
-    //Subsystems.add(BallSubsystem)
-    RealTimeTasks.add(OdometryTracker(DrivetrainSubsystem))
-    RealTimeTasks.add(TurretUpdater)
+
+    Controllers.add(HumanControllers.leftStick, HumanControllers.rightStick, HumanControllers.gamePad)
+    Subsystems.add(DrivetrainSubsystem, BallSubsystem, ClimbingSubsystem, ShooterSubsystem)
+
+    RealTimeTasks.add(OdometryTracker(DrivetrainSubsystem), TurretUpdater)
     TurretLimelight.start()
+    TurretLimelight.ledOff()
 }

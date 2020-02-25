@@ -1,6 +1,7 @@
 package org.team401.robot2020.control.robot
 
 import edu.wpi.first.networktables.*
+import edu.wpi.first.wpilibj.LinearFilter
 import org.snakeskin.dsl.readTimestamp
 import org.snakeskin.logic.LowPass
 import org.snakeskin.measure.Degrees
@@ -20,13 +21,17 @@ object TurretLimelight {
     private val tl = table.getEntry("tl")
     private val tv = table.getEntry("tv")
 
+    private val ledMode = table.getEntry("ledMode")
+
+    private val txFilter by lazy { LinearFilter.movingAverage(5) }
+
     private object FrameListener: TableEntryListener {
         override fun valueChanged(table: NetworkTable, key: String, entry: NetworkTableEntry, value: NetworkTableValue, flags: Int) {
             val timestamp = readTimestamp()
             if (tv.getDouble(0.0) == 1.0) {
                 val latency = tl.getDouble(0.0).Milliseconds.toSeconds()
                 val frameReceivedTimestamp = timestamp - latency - constantLatency
-                val targetHoriz = (-1.0 * tx.getDouble(0.0)).Degrees
+                val targetHoriz = txFilter.calculate((-1.0 * tx.getDouble(0.0))).Degrees
                 val targetVert = ty.getDouble(0.0).Degrees
 
                 /* TODO add distance calculation (requires mode detection of far vs. near)
@@ -35,6 +40,8 @@ object TurretLimelight {
                  */
 
                 RobotState.addCameraObservation(Rotation2d.fromDegrees(targetHoriz.value), 0.0, frameReceivedTimestamp)
+            } else {
+                txFilter.reset()
             }
         }
     }
@@ -45,5 +52,13 @@ object TurretLimelight {
 
     @Synchronized fun start() {
         table.addEntryListener("tl", FrameListener, EntryListenerFlags.kUpdate)
+    }
+
+    fun ledOn() {
+        ledMode.setDouble(0.0)
+    }
+
+    fun ledOff() {
+        ledMode.setDouble(1.0)
     }
 }

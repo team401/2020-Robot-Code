@@ -19,18 +19,21 @@ import org.snakeskin.measure.distance.angular.AngularDistanceMeasureRadians
 import org.snakeskin.measure.time.TimeMeasureSeconds
 import org.snakeskin.measure.velocity.angular.AngularVelocityMeasureRadiansPerSecond
 import org.snakeskin.measure.velocity.angular.AngularVelocityMeasureRevolutionsPerSecond
+import org.snakeskin.utility.Ticker
 import org.snakeskin.utility.value.AsyncValue
 import org.team401.robot2020.config.CANDevices
 import org.team401.robot2020.config.DIOChannels
 import org.team401.robot2020.config.constants.ShooterConstants
 import org.team401.robot2020.control.VelocityProfiler
 import org.team401.robot2020.control.robot.RobotState
+import org.team401.robot2020.control.robot.TurretLimelight
 import org.team401.robot2020.util.CharacterizationRoutine
 import org.team401.robot2020.util.LoggerSession
 import org.team401.robot2020.util.getAcceleration
 import org.team401.taxis.geometry.Rotation2d
 
 object ShooterSubsystem: Subsystem() {
+    //<editor-fold desc="Hardware Devices">
     private val shooterMotorA = Hardware.createBrushlessSparkMax(
         CANDevices.shooterMotorA.canID,
         SparkMaxOutputVoltageReadingMode.MultiplyVbusDevice,
@@ -66,7 +69,9 @@ object ShooterSubsystem: Subsystem() {
     )
 
     private val turretRotationGearbox = Gearbox(turretEncoder, turretRotationMotor, ratioToSensor = ShooterConstants.turretRatio)
+    //</editor-fold>
 
+    //<editor-fold desc="Models and Controllers">
     private val flywheelProfiler = VelocityProfiler(ShooterConstants.flywheelRampAcceleration)
     private val flywheelModel = SimpleMotorFeedforward(
         ShooterConstants.flywheelKs,
@@ -96,21 +101,22 @@ object ShooterSubsystem: Subsystem() {
 
     val turretCharacterizationRoutine = CharacterizationRoutine(turretRotationGearbox, turretRotationGearbox)
     val shooterCharacterizationRoutine = CharacterizationRoutine(shooterGearbox, shooterGearbox)
+    //</editor-fold>
 
     fun getTurretAngle(): Rotation2d {
         return Rotation2d.fromRadians(turretRotationGearbox.getAngularPosition().toRadians().value)
     }
 
     enum class TurretStates {
-        Test,
         Homing, //Turret is homing
         Hold, //Turret is holding its current position
         LockToZero, //Turret is pointed straight ahead
-        CoordinatedControl //Turret is following instructions from the RobotState
+        LockForClimb, //Turret goes to the climbing position
+        Seeking, //Turret is looking for the vision target on the wall
+        FollowingTarget //Turret is locked onto the vision target
     }
 
     enum class FlywheelStates {
-        Test,
         PreSpin, //Flywheel is spun up to the initial velocity
         CoordinatedControl, //Flywheel is following instructions from the RobotState
         Manual //Flywheel has been taken control of manually and is following user input
@@ -171,9 +177,6 @@ object ShooterSubsystem: Subsystem() {
     }
 
     val flywheelMachine: StateMachine<FlywheelStates> = stateMachine {
-        state(FlywheelStates.Test) {
-        }
-
         state(FlywheelStates.PreSpin) {
             entry {
                 flywheelProfiler.reset(shooterGearbox.getAngularVelocity().toRadiansPerSecond())
@@ -219,7 +222,7 @@ object ShooterSubsystem: Subsystem() {
     val kickerMachine: StateMachine<KickerStates> = stateMachine {
         state(KickerStates.Kick) {
             action {
-                kickerMotor.setPercentOutput(0.75)
+                kickerMotor.setPercentOutput(1.0)
             }
         }
 
@@ -230,25 +233,22 @@ object ShooterSubsystem: Subsystem() {
         }
     }
 
-    var turretSetpoint by AsyncValue(0.0.Radians)
-
     val turretMachine: StateMachine<TurretStates> = stateMachine {
-        state(TurretStates.Test) {
-            entry {
-                resetTurret()
-            }
-
-            rtAction { timestamp, dt ->
-                updateTurret(turretSetpoint)
-            }
-        }
-
         state(TurretStates.Homing) {
 
         }
 
         state(TurretStates.Hold) {
+            var position = 0.0.Radians
 
+            entry {
+                resetTurret()
+                position = turretRotationGearbox.getAngularPosition().toRadians()
+            }
+
+            rtAction { timestamp, dt ->
+                updateTurret(position)
+            }
         }
 
         state(TurretStates.LockToZero) {
@@ -261,23 +261,56 @@ object ShooterSubsystem: Subsystem() {
             }
         }
 
-        state(TurretStates.CoordinatedControl) {
+        state(TurretStates.LockForClimb) {
+            entry {
+                resetTurret()
+            }
+
+            rtAction { timestamp, dt ->
+                updateTurret((-180.0).Degrees.toRadians())
+            }
+        }
+
+        state(TurretStates.Seeking) {
+            val lockTicker = Ticker({ turretController.atGoal() && TurretLimelight.hasTarget() }, 0.05.Seconds, actionRate)
+
+            entry {
+                resetTurret()
+                lockTicker.reset()
+            }
+
+            rtAction { timestamp, dt ->
+                val fieldToVehicle = RobotState.getFieldToVehicle(timestamp)
+                val targetRotation = Rotation2d(fieldToVehicle.rotation.inverse().radians, true)
+
+                updateTurret(targetRotation.radians.Radians)
+                lockTicker.check {
+                    setState(TurretStates.FollowingTarget)
+                }
+            }
+        }
+
+        state(TurretStates.FollowingTarget) {
+            val unlockTicker = Ticker({ !TurretLimelight.hasTarget() }, 0.1.Seconds, actionRate)
+
             entry {
                 resetTurret()
             }
 
             rtAction { timestamp, dt ->
                 val aimingParams = RobotState.getTurretAimingParameters(timestamp)
-                //val currentAngle = turretRotationGearbox.getAngularPosition().toRadians().value
-                val targetAngle = Rotation2d(aimingParams.desiredAngle.radians, true).radians//RobotState.getFieldToVehicle(timestamp).rotation.inverse().radians
+                val targetAngle = Rotation2d(aimingParams.desiredAngle.radians, true)
 
-                updateTurret(targetAngle.Radians)
+                updateTurret(targetAngle.radians.Radians)
+                unlockTicker.check {
+                    setState(TurretStates.Seeking)
+                }
             }
         }
 
         disabled {
             action {
-                shooterGearbox.stop()
+                turretRotationGearbox.stop()
             }
         }
     }
@@ -295,23 +328,14 @@ object ShooterSubsystem: Subsystem() {
 
         useHardware(turretRotationMotor) {
             idleMode = CANSparkMax.IdleMode.kBrake
-
             enableVoltageCompensation(12.0)
         }
 
         turretRotationGearbox.setAngularPosition(0.0.Revolutions)
-
-        turretController.setTolerance(1.0.Degrees.toRadians().value)
+        turretController.setTolerance(2.0.Degrees.toRadians().value)
 
         on (Events.ENABLED) {
-            //flywheelMachine.setState(FlywheelStates.PreSpin)
-        }
-
-        SmartDashboard.putNumber("shooter_p", 0.0)
-
-        on (Events.TELEOP_ENABLED) {
-            turretMachine.setState(TurretStates.LockToZero)
-            //flywheelMachine.setState(FlywheelStates.PreSpin)
+            turretMachine.setState(TurretStates.Hold)
         }
     }
 }
