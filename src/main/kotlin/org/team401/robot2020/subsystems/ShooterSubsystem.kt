@@ -1,5 +1,9 @@
 package org.team401.robot2020.subsystems
 
+import com.ctre.phoenix.motorcontrol.ControlFrame
+import com.ctre.phoenix.motorcontrol.InvertType
+import com.ctre.phoenix.motorcontrol.NeutralMode
+import com.ctre.phoenix.motorcontrol.StatusFrame
 import com.revrobotics.CANSparkMax
 import com.revrobotics.CANSparkMaxLowLevel
 import edu.wpi.first.wpilibj.controller.PIDController
@@ -11,7 +15,9 @@ import org.snakeskin.component.Gearbox
 import org.snakeskin.component.SmartGearbox
 import org.snakeskin.component.SparkMaxOutputVoltageReadingMode
 import org.snakeskin.component.impl.HardwareSparkMaxDevice
+import org.snakeskin.component.impl.HardwareTalonFxDevice
 import org.snakeskin.component.impl.NullSparkMaxDevice
+import org.snakeskin.component.impl.NullTalonFxDevice
 import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
 import org.snakeskin.measure.*
@@ -34,17 +40,17 @@ import org.team401.taxis.geometry.Rotation2d
 
 object ShooterSubsystem: Subsystem() {
     //<editor-fold desc="Hardware Devices">
-    private val shooterMotorA = Hardware.createBrushlessSparkMax(
+
+    private val shooterMotorA = Hardware.createTalonFX(
         CANDevices.shooterMotorA.canID,
-        SparkMaxOutputVoltageReadingMode.MultiplyVbusDevice,
-        mockProducer = NullSparkMaxDevice.producer
+        mockProducer = NullTalonFxDevice.producer
     )
 
-    private val shooterMotorB = Hardware.createBrushlessSparkMax(
-        CANDevices.shooterMotorB.canID,
-        SparkMaxOutputVoltageReadingMode.MultiplyVbusDevice,
-        mockProducer = NullSparkMaxDevice.producer
+    private val shooterMotorB = Hardware.createTalonFX(
+        CANDevices.shooterMotorA.canID,
+        mockProducer = NullTalonFxDevice.producer
     )
+
 
     private val shooterGearbox = SmartGearbox(shooterMotorA, shooterMotorB, ratioToSensor = ShooterConstants.flywheelRatio)
 
@@ -319,11 +325,20 @@ object ShooterSubsystem: Subsystem() {
     override fun setup() {
         useHardware(shooterMotorA) {
             inverted = false
-            setPeriodicFramePeriod(CANSparkMaxLowLevel.PeriodicFrame.kStatus1, 5)
+            setNeutralMode(NeutralMode.Coast)
+            configOpenloopRamp(0.0)
+            configNeutralDeadband(0.0)
+            setControlFramePeriod(ControlFrame.Control_3_General, 5)
+            setStatusFramePeriod(StatusFrame.Status_1_General, 5)
+            enableVoltageCompensation(true)
+            configVoltageCompSaturation(12.0)
         }
 
         useHardware(shooterMotorB) {
-            follow((shooterMotorA as HardwareSparkMaxDevice).device, true)
+            setInverted(InvertType.OpposeMaster)
+            setNeutralMode(NeutralMode.Coast)
+            setStatusFramePeriod(StatusFrame.Status_1_General, Int.MAX_VALUE)
+            setStatusFramePeriod(StatusFrame.Status_2_Feedback0, Int.MAX_VALUE)
         }
 
         useHardware(turretRotationMotor) {
