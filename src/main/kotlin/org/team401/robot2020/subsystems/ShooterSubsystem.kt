@@ -1,9 +1,6 @@
 package org.team401.robot2020.subsystems
 
-import com.ctre.phoenix.motorcontrol.ControlFrame
-import com.ctre.phoenix.motorcontrol.InvertType
-import com.ctre.phoenix.motorcontrol.NeutralMode
-import com.ctre.phoenix.motorcontrol.StatusFrame
+import com.ctre.phoenix.motorcontrol.*
 import com.revrobotics.CANSparkMax
 import com.revrobotics.CANSparkMaxLowLevel
 import edu.wpi.first.wpilibj.controller.PIDController
@@ -11,6 +8,7 @@ import edu.wpi.first.wpilibj.controller.ProfiledPIDController
 import edu.wpi.first.wpilibj.controller.SimpleMotorFeedforward
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 import edu.wpi.first.wpilibj.trajectory.TrapezoidProfile
+import org.snakeskin.component.CTREFeedforwardScalingMode
 import org.snakeskin.component.Gearbox
 import org.snakeskin.component.SmartGearbox
 import org.snakeskin.component.SparkMaxOutputVoltageReadingMode
@@ -40,9 +38,9 @@ import org.team401.taxis.geometry.Rotation2d
 
 object ShooterSubsystem: Subsystem() {
     //<editor-fold desc="Hardware Devices">
-
     private val shooterMotorA = Hardware.createTalonFX(
         CANDevices.shooterMotorA.canID,
+        ffMode = CTREFeedforwardScalingMode.Scale12V,
         mockProducer = NullTalonFxDevice.producer
     )
 
@@ -50,7 +48,6 @@ object ShooterSubsystem: Subsystem() {
         CANDevices.shooterMotorA.canID,
         mockProducer = NullTalonFxDevice.producer
     )
-
 
     private val shooterGearbox = SmartGearbox(shooterMotorA, shooterMotorB, ratioToSensor = ShooterConstants.flywheelRatio)
 
@@ -85,8 +82,6 @@ object ShooterSubsystem: Subsystem() {
         ShooterConstants.flywheelKa
     )
 
-    private val flywheelController = PIDController(ShooterConstants.flywheelKp, 0.0, 0.0)
-
     private val turretConstraints = TrapezoidProfile.Constraints(
         ShooterConstants.turretVelocity.value,
         ShooterConstants.turretAccel.value
@@ -106,12 +101,21 @@ object ShooterSubsystem: Subsystem() {
     private var lastTurretSetpoint = TrapezoidProfile.State()
 
     val turretCharacterizationRoutine = CharacterizationRoutine(turretRotationGearbox, turretRotationGearbox)
-    val shooterCharacterizationRoutine = CharacterizationRoutine(shooterGearbox, shooterGearbox)
+    val flywheelCharacterizationRoutine = CharacterizationRoutine(shooterGearbox, shooterGearbox)
     //</editor-fold>
 
     fun getTurretAngle(): Rotation2d {
         return Rotation2d.fromRadians(turretRotationGearbox.getAngularPosition().toRadians().value)
     }
+
+    /*
+    fun isFlywheelAtShootingSpeed(): Boolean {
+        //TODO use the actual speed
+        val targetSpeed = ShooterConstants.flywheelDefaultSpeed
+        val currentSpeed = shooterGearbox.getAngularVelocity()
+    }
+
+     */
 
     enum class TurretStates {
         Homing, //Turret is homing
@@ -157,13 +161,12 @@ object ShooterSubsystem: Subsystem() {
 
     private fun updateFlywheel(dt: TimeMeasureSeconds, velocity: AngularVelocityMeasureRadiansPerSecond) {
         flywheelProfiler.calculate(dt, velocity)
-        val feedbackVolts = flywheelController.calculate(shooterGearbox.getAngularVelocity().toRadiansPerSecond().value, flywheelProfiler.velocityCommand.value)
         val ffVolts = flywheelModel.calculate(
             flywheelProfiler.velocityCommand.value,
             flywheelProfiler.accelerationCommand.value
         )
 
-        shooterGearbox.setPercentOutput((feedbackVolts + ffVolts) / 12.0)
+        shooterGearbox.setAngularVelocitySetpoint(flywheelProfiler.velocityCommand, ffVolts)
     }
 
     private fun resetTurret() {
@@ -184,13 +187,23 @@ object ShooterSubsystem: Subsystem() {
 
     val flywheelMachine: StateMachine<FlywheelStates> = stateMachine {
         state(FlywheelStates.PreSpin) {
+            lateinit var session: LoggerSession
+
             entry {
+                session = LoggerSession("10.4.1.162", 5801)
                 flywheelProfiler.reset(shooterGearbox.getAngularVelocity().toRadiansPerSecond())
             }
 
             rtAction { timestamp, dt ->
                 updateFlywheel(dt, ShooterConstants.flywheelDefaultSpeed)
-                println(shooterGearbox.getAngularVelocity().toRevolutionsPerMinute().value)
+
+                session["Timestamp (s)"] = timestamp.value
+                session["Velocity (RPM)"] = shooterGearbox.getAngularVelocity().toRevolutionsPerMinute().value
+                session.publish()
+            }
+
+            exit {
+                session.end()
             }
         }
 
@@ -219,7 +232,7 @@ object ShooterSubsystem: Subsystem() {
         }
 
         disabled {
-            action {
+            entry {
                 shooterGearbox.stop()
             }
         }
@@ -297,7 +310,7 @@ object ShooterSubsystem: Subsystem() {
         }
 
         state(TurretStates.FollowingTarget) {
-            val unlockTicker = Ticker({ !TurretLimelight.hasTarget() }, 0.1.Seconds, actionRate)
+            //val unlockTicker = Ticker({ !TurretLimelight.hasTarget() }, 0.1.Seconds, actionRate)
 
             entry {
                 resetTurret()
@@ -308,19 +321,18 @@ object ShooterSubsystem: Subsystem() {
                 val targetAngle = Rotation2d(aimingParams.desiredAngle.radians, true)
 
                 updateTurret(targetAngle.radians.Radians)
-                unlockTicker.check {
-                    setState(TurretStates.Seeking)
-                }
+                //unlockTicker.check {
+                //    setState(TurretStates.Seeking)
+                //}
             }
         }
 
         disabled {
-            action {
+            entry {
                 turretRotationGearbox.stop()
             }
         }
     }
-
 
     override fun setup() {
         useHardware(shooterMotorA) {
@@ -330,6 +342,7 @@ object ShooterSubsystem: Subsystem() {
             configNeutralDeadband(0.0)
             setControlFramePeriod(ControlFrame.Control_3_General, 5)
             setStatusFramePeriod(StatusFrame.Status_1_General, 5)
+            setStatusFramePeriod(StatusFrame.Status_2_Feedback0, 5)
             enableVoltageCompensation(true)
             configVoltageCompSaturation(12.0)
         }
@@ -351,6 +364,10 @@ object ShooterSubsystem: Subsystem() {
 
         on (Events.ENABLED) {
             turretMachine.setState(TurretStates.Hold)
+        }
+
+        on (Events.TELEOP_ENABLED) {
+            flywheelMachine.setState(FlywheelStates.PreSpin)
         }
     }
 }

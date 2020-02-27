@@ -16,8 +16,10 @@ fun setup() {
     SelectableValue.selected = RobotConstants.COMP_INDEX
     SnakeskinRuntime.createRealTimeExecutor(RobotConstants.rtPeriod)
 
-    Controllers.add(HumanControllers.leftStick, HumanControllers.rightStick, HumanControllers.gamePad)
-    Subsystems.add(DrivetrainSubsystem, BallSubsystem, ClimbingSubsystem, ShooterSubsystem)
+    AutoManager.setAutoLoop(ShooterSubsystem.flywheelCharacterizationRoutine.loop)
+
+    Controllers.add(HumanControllers.gamePad)
+    Subsystems.add(DrivetrainSubsystem, BallSubsystem, ShooterSubsystem)
 
     RealTimeTasks.add(OdometryTracker(DrivetrainSubsystem), TurretUpdater)
     TurretLimelight.start()

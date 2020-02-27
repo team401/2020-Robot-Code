@@ -39,11 +39,11 @@ object ShooterConstants {
     //Flywheel dynamics
     val flywheelRatio = 18.0 / 30.0 // Total reduction of motor to flywheel shaft
 
-    val flywheelKs by SelectableDouble(0.216, 0.0) // volts
-    val flywheelKv by SelectableDouble(0.0128, 0.0) // volts / rev/s
-    val flywheelKa by SelectableDouble(0.00429, 0.0) //volts / rad/s/s
+    val flywheelKs by SelectableDouble(0.446, 0.0) // volts
+    val flywheelKv by SelectableDouble(0.0116, 0.0) // volts / rev/s
+    val flywheelKa by SelectableDouble(0.000777, 0.0) //volts / rad/s/s
 
-    val flywheelKp by SelectableDouble(0.07, 0.0) // SPARK MAX p unit
+    val flywheelKp by SelectableDouble(0.07, 0.0) // Talon FX p unit
 
     val flywheelMaxVelocity = 9000.0.RevolutionsPerMinute.toRadiansPerSecond()
 
@@ -51,7 +51,7 @@ object ShooterConstants {
     val flywheelRampAcceleration = (8000.0.RevolutionsPerMinute / 2.0.Seconds).toRadiansPerSecondPerSecond()
 
     //Default speed for the flywheel to spin at
-    val flywheelDefaultSpeed = (6000.0.RevolutionsPerMinute).toRadiansPerSecond()
+    val flywheelDefaultSpeed = (000.0.RevolutionsPerMinute).toRadiansPerSecond()
 
     //Rate to bump the flywheel speed up or down by
     val flywheelBump = 10.0.RevolutionsPerSecond.toRadiansPerSecond()
