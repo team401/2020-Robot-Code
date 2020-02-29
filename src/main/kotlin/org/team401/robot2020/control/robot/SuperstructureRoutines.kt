@@ -32,6 +32,7 @@ object SuperstructureRoutines {
     @Synchronized fun prepareForShooting() {
         ShooterSubsystem.flywheelMachine.setState(ShooterSubsystem.FlywheelStates.PreSpin)
         ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FollowingTarget)
+        ShooterSubsystem.kickerMachine.setState(ShooterSubsystem.KickerStates.Kick)
         TurretLimelight.ledOn()
     }
 

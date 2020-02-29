@@ -9,6 +9,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 import edu.wpi.first.wpilibj.trajectory.TrapezoidProfile
 import org.snakeskin.component.SmartGearbox
 import org.snakeskin.component.SparkMaxOutputVoltageReadingMode
+import org.snakeskin.component.impl.NullDigitalInputChannel
 import org.snakeskin.component.impl.NullSparkMaxDevice
 import org.snakeskin.component.impl.NullTalonSrxDevice
 import org.snakeskin.dsl.*
@@ -51,15 +52,15 @@ object BallSubsystem : Subsystem() {
 
     private val intakeArmGearbox = SmartGearbox(intakeArmMotor)
 
-    private val bottomGateSensor = Hardware.createDigitalInputChannel(
+    private val bottomGateSensor = NullDigitalInputChannel.INSTANCE /*Hardware.createDigitalInputChannel(
         DIOChannels.towerBottomGateSensor,
         halMock = true
-    ).inverted()
+    ).inverted() */
 
-    private val topGateSensor = Hardware.createDigitalInputChannel(
+    private val topGateSensor = NullDigitalInputChannel.INSTANCE /*Hardware.createDigitalInputChannel(
         DIOChannels.towerTopGateSensor,
         halMock = true
-    ).inverted()
+    ).inverted() */
     //</editor-fold>
 
     //<editor-fold desc="Models and Controllers">

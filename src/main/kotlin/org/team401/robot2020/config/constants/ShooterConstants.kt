@@ -1,9 +1,12 @@
 package org.team401.robot2020.config.constants
 
 import org.snakeskin.measure.*
+import org.snakeskin.measure.distance.linear.LinearDistanceMeasureInches
+import org.snakeskin.measure.velocity.angular.AngularVelocityMeasureRadiansPerSecond
 import org.snakeskin.utility.value.SelectableDouble
 import org.snakeskin.utility.value.SelectableValue
 import org.team401.taxis.geometry.Translation2d
+import org.team401.util.PolynomialRegression
 
 /**
  * Various constants for the shooter.  Some general conventions:
@@ -14,8 +17,8 @@ import org.team401.taxis.geometry.Translation2d
 object ShooterConstants {
     //Turret geometry
     val robotToTurret by SelectableValue( //Translation from robot origin to turret origin
-        Translation2d(10.0, 0.0),
-        Translation2d(10.0, 0.0)
+        Translation2d(-9.5, 0.0),
+        Translation2d(-9.5, 0.0)
     )
 
     val turretCameraMountingAngleClose by SelectableValue(15.0.Degrees, 15.0.Degrees) //Angle of the turret camera in close mode
@@ -30,6 +33,9 @@ object ShooterConstants {
 
     val turretKp by SelectableDouble(30.0, 0.0) // volts / (rad error)
     val turretKd by SelectableDouble(1.0, 0.0) // volts / (rad/s error)
+
+    val turretTrackingKp by SelectableDouble(17.0, 0.0)
+    val turretTrackingKd by SelectableDouble(0.1, 0.0)
 
     val turretVelocity = (180.0.Degrees / 0.3.Seconds).toRadiansPerSecond()
     val turretAccel = turretVelocity / 0.05.Seconds
@@ -51,14 +57,21 @@ object ShooterConstants {
     val flywheelRampAcceleration = (8000.0.RevolutionsPerMinute / 2.0.Seconds).toRadiansPerSecondPerSecond()
 
     //Default speed for the flywheel to spin at
-    val flywheelDefaultSpeed = (000.0.RevolutionsPerMinute).toRadiansPerSecond()
+    val flywheelDefaultSpeed = (00.0.RevolutionsPerMinute).toRadiansPerSecond()
 
     //Rate to bump the flywheel speed up or down by
     val flywheelBump = 10.0.RevolutionsPerSecond.toRadiansPerSecond()
 
     //LUT and regression
     val flywheelLUT = arrayOf(
-        doubleArrayOf(0.0, 0.0),
-        doubleArrayOf(1.0, 10.0)
+        doubleArrayOf(88.0, 3350.0),
+        doubleArrayOf(138.0, 3600.0),
+        doubleArrayOf(197.0, 3850.0),
+        doubleArrayOf(204.0, 3900.0),
+        doubleArrayOf(225.0, 4100.0)
     )
+
+    val flywheelRegression = PolynomialRegression(flywheelLUT, 2)
+
+    val turretZeroOffset = 40.0.Degrees.toRadians()
 }

@@ -24,6 +24,7 @@ import org.team401.taxis.diffdrive.control.DifferentialDrivetrainModel
 import org.team401.taxis.diffdrive.control.DrivetrainPathManager
 import org.team401.taxis.diffdrive.control.NonlinearFeedbackPathController
 import org.team401.taxis.geometry.Pose2d
+import org.team401.taxis.geometry.Rotation2d
 
 object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
     //<editor-fold desc="Hardware Devices">
@@ -162,22 +163,24 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
 
         useHardware(leftMaster) {
             inverted = true
-            setIdleMode(CANSparkMax.IdleMode.kBrake)
-            setOpenLoopRampRate(0.0)
+            idleMode = CANSparkMax.IdleMode.kBrake
+            openLoopRampRate = 0.0
             enableVoltageCompensation(12.0)
 
         }
         useHardware(leftSlave) {
-
+            idleMode = CANSparkMax.IdleMode.kBrake
         }
+
         useHardware(rightMaster) {
             inverted = false
-            setIdleMode(CANSparkMax.IdleMode.kBrake)
-            setOpenLoopRampRate(0.0)
+            idleMode = CANSparkMax.IdleMode.kBrake
+            openLoopRampRate = 0.0
             enableVoltageCompensation(12.0)
         }
-        useHardware(rightSlave) {
 
+        useHardware(rightSlave) {
+            idleMode = CANSparkMax.IdleMode.kBrake
         }
     }
 
@@ -206,7 +209,7 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
 
     override fun setup() {
         configForStartup()
-        setPose(Pose2d.identity(), readTimestamp())
+        setPose(Pose2d.fromRotation(Rotation2d.fromDegrees(180.0)), readTimestamp())
 
         on (Events.TELEOP_ENABLED) {
             driveMachine.setState(DriveStates.OperatorControl)

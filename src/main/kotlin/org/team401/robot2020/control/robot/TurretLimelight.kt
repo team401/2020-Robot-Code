@@ -6,6 +6,8 @@ import org.snakeskin.dsl.readTimestamp
 import org.snakeskin.logic.LowPass
 import org.snakeskin.measure.Degrees
 import org.snakeskin.measure.Milliseconds
+import org.snakeskin.measure.time.TimeMeasureSeconds
+import org.snakeskin.rt.RealTimeTask
 import org.team401.robot2020.config.FieldGeometry
 import org.team401.taxis.geometry.Rotation2d
 import kotlin.math.floor
@@ -23,35 +25,25 @@ object TurretLimelight {
 
     private val ledMode = table.getEntry("ledMode")
 
-    private val txFilter by lazy { LinearFilter.movingAverage(5) }
+    //private val txFilter by lazy { LinearFilter.movingAverage(5) }
 
-    private object FrameListener: TableEntryListener {
-        override fun valueChanged(table: NetworkTable, key: String, entry: NetworkTableEntry, value: NetworkTableValue, flags: Int) {
-            val timestamp = readTimestamp()
-            if (tv.getDouble(0.0) == 1.0) {
-                val latency = tl.getDouble(0.0).Milliseconds.toSeconds()
-                val frameReceivedTimestamp = timestamp - latency - constantLatency
-                val targetHoriz = txFilter.calculate((-1.0 * tx.getDouble(0.0))).Degrees
-                val targetVert = ty.getDouble(0.0).Degrees
+    fun captureFrame(timestamp: TimeMeasureSeconds): Boolean {
+        //Retrieve a frame from the camera
+        return if (tv.getDouble(0.0) == 1.0) {
+            val latency = tl.getDouble(0.0).Milliseconds.toSeconds()
+            val frameReceivedTimestamp = timestamp - latency - constantLatency
+            val targetHoriz = (-1.0 * tx.getDouble(0.0)).Degrees
+            val targetVert = ty.getDouble(0.0).Degrees
 
-                /* TODO add distance calculation (requires mode detection of far vs. near)
-                val distance = (FieldGeometry.outerPortCenterHeight - TurretGeometry.turretCameraMountingHeight).value /
-                        tan((TurretGeometry.turretCameraMountingAngle + targetVert).value)
-                 */
-
-                RobotState.addCameraObservation(Rotation2d.fromDegrees(targetHoriz.value), 0.0, frameReceivedTimestamp)
-            } else {
-                txFilter.reset()
-            }
+            RobotState.addCameraObservation(Rotation2d.fromDegrees(targetHoriz.value), 0.0, frameReceivedTimestamp)
+            true
+        } else {
+            false
         }
     }
 
     @Synchronized fun hasTarget(): Boolean {
         return tv.getDouble(0.0) == 1.0
-    }
-
-    @Synchronized fun start() {
-        table.addEntryListener("tl", FrameListener, EntryListenerFlags.kUpdate)
     }
 
     fun ledOn() {

@@ -14,8 +14,8 @@ class LoggerSession(val server: String, val port: Int) {
     private lateinit var buffer: ByteBuffer
     private lateinit var doubleBuf: DoubleBuffer
     private var isHeaderPublished = false
-    private val socket = Socket(server, port)
-    private val stream = socket.getOutputStream()
+    private val socket = try { Socket(server, port) } catch (e: Exception) { null }
+    private val stream = socket?.getOutputStream()
     private val writer = PrintWriter(stream, true, Charsets.UTF_8)
 
     /**
@@ -35,44 +35,30 @@ class LoggerSession(val server: String, val port: Int) {
      * Sends the current buffer data to the server.  This should be called at the end of all set calls.
      */
     fun publish() {
-        if (!isHeaderPublished) {
-            //Need to publish the header
-            writer.println(header.joinToString())
-            buffer = ByteBuffer.allocate(java.lang.Double.BYTES * header.size)
-            doubleBuf = buffer.asDoubleBuffer()
+        if (stream != null) {
+            if (!isHeaderPublished) {
+                //Need to publish the header
+                writer.println(header.joinToString())
+                buffer = ByteBuffer.allocate(java.lang.Double.BYTES * header.size)
+                doubleBuf = buffer.asDoubleBuffer()
 
-            preHeaderBuffer.forEachIndexed { index, d ->
-                doubleBuf.put(index, d)
+                preHeaderBuffer.forEachIndexed { index, d ->
+                    doubleBuf.put(index, d)
+                }
+                preHeaderBuffer.clear()
+
+                isHeaderPublished = true
             }
-            preHeaderBuffer.clear()
 
-            isHeaderPublished = true
+            //Write data to the server
+            stream.write(buffer.array())
         }
-
-        //Write data to the server
-        stream.write(buffer.array())
     }
 
     /**
      * Ends the session, telling the server to save the received data to file.
      */
     fun end() {
-        socket.close()
+        socket?.close()
     }
-}
-
-fun main() {
-    val session = LoggerSession("localhost", 5801)
-
-    var timestamp = 0.0
-
-    for (i in 0 until 1000) {
-        session["Timestamp (s)"] = timestamp
-        session["Test value 1"] = Math.random()
-        session["Test value 2"] = Math.random()
-        session.publish()
-        timestamp += .01
-    }
-
-    session.end()
 }

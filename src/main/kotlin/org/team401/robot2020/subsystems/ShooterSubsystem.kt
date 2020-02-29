@@ -3,6 +3,7 @@ package org.team401.robot2020.subsystems
 import com.ctre.phoenix.motorcontrol.*
 import com.revrobotics.CANSparkMax
 import com.revrobotics.CANSparkMaxLowLevel
+import edu.wpi.first.wpilibj.LinearFilter
 import edu.wpi.first.wpilibj.controller.PIDController
 import edu.wpi.first.wpilibj.controller.ProfiledPIDController
 import edu.wpi.first.wpilibj.controller.SimpleMotorFeedforward
@@ -30,6 +31,7 @@ import org.team401.robot2020.config.DIOChannels
 import org.team401.robot2020.config.constants.ShooterConstants
 import org.team401.robot2020.control.VelocityProfiler
 import org.team401.robot2020.control.robot.RobotState
+import org.team401.robot2020.control.robot.SuperstructureManager
 import org.team401.robot2020.control.robot.TurretLimelight
 import org.team401.robot2020.util.CharacterizationRoutine
 import org.team401.robot2020.util.LoggerSession
@@ -92,6 +94,13 @@ object ShooterSubsystem: Subsystem() {
         turretConstraints,
         0.01
     ) }
+
+    private val visionTurretController by lazy { PIDController(
+        ShooterConstants.turretTrackingKp, 0.0,
+        ShooterConstants.turretTrackingKd,
+        0.01
+    )}
+
     private val turretModel = SimpleMotorFeedforward(
         ShooterConstants.turretKs,
         ShooterConstants.turretKv,
@@ -104,7 +113,11 @@ object ShooterSubsystem: Subsystem() {
     val flywheelCharacterizationRoutine = CharacterizationRoutine(shooterGearbox, shooterGearbox)
     //</editor-fold>
 
-    fun getTurretAngle(): Rotation2d {
+    fun getTurretAngle(): AngularDistanceMeasureRadians {
+        return turretRotationGearbox.getAngularPosition()
+    }
+
+    fun getTurretRotation(): Rotation2d {
         return Rotation2d.fromRadians(turretRotationGearbox.getAngularPosition().toRadians().value)
     }
 
@@ -185,25 +198,31 @@ object ShooterSubsystem: Subsystem() {
         turretRotationGearbox.setPercentOutput((feedbackVolts + ffVolts) / 12.0)
     }
 
+    private fun visionUpdateTurret(target: AngularDistanceMeasureRadians, vel: AngularVelocityMeasureRadiansPerSecond) {
+        val feedbackVolts = visionTurretController.calculate(turretRotationGearbox.getAngularPosition().toRadians().value, target.value)
+        val ffVolts = turretModel.calculate(vel.value)
+        turretRotationGearbox.setPercentOutput((feedbackVolts + ffVolts) / 12.0)
+    }
+
     val flywheelMachine: StateMachine<FlywheelStates> = stateMachine {
         state(FlywheelStates.PreSpin) {
             lateinit var session: LoggerSession
 
             entry {
-                session = LoggerSession("10.4.1.162", 5801)
+                //session = LoggerSession("10.4.1.162", 5801)
                 flywheelProfiler.reset(shooterGearbox.getAngularVelocity().toRadiansPerSecond())
             }
 
             rtAction { timestamp, dt ->
-                updateFlywheel(dt, ShooterConstants.flywheelDefaultSpeed)
+                updateFlywheel(dt, ShooterConstants.flywheelRegression.predict(SuperstructureManager.distanceFromTarget.value).RevolutionsPerMinute.toRadiansPerSecond())
 
-                session["Timestamp (s)"] = timestamp.value
-                session["Velocity (RPM)"] = shooterGearbox.getAngularVelocity().toRevolutionsPerMinute().value
-                session.publish()
+                //session["Timestamp (s)"] = timestamp.value
+                //session["Velocity (RPM)"] = shooterGearbox.getAngularVelocity().toRevolutionsPerMinute().value
+                //session.publish()
             }
 
             exit {
-                session.end()
+                //session.end()
             }
         }
 
@@ -266,7 +285,8 @@ object ShooterSubsystem: Subsystem() {
             }
 
             rtAction { timestamp, dt ->
-                updateTurret(position)
+                turretRotationGearbox.stop()
+                //updateTurret(position)
             }
         }
 
@@ -276,7 +296,7 @@ object ShooterSubsystem: Subsystem() {
             }
 
             rtAction { timestamp, dt ->
-                updateTurret(0.0.Radians)
+                updateTurret(ShooterConstants.turretZeroOffset)
             }
         }
 
@@ -314,16 +334,15 @@ object ShooterSubsystem: Subsystem() {
 
             entry {
                 resetTurret()
+                //filter.reset()
+                //RobotState.resetVision()
             }
 
             rtAction { timestamp, dt ->
-                val aimingParams = RobotState.getTurretAimingParameters(timestamp)
-                val targetAngle = Rotation2d(aimingParams.desiredAngle.radians, true)
+                val targetPosition = SuperstructureManager.turretPositionSetpoint
+                val targetVelocity = SuperstructureManager.turretVelocitySetpoint
 
-                updateTurret(targetAngle.radians.Radians)
-                //unlockTicker.check {
-                //    setState(TurretStates.Seeking)
-                //}
+                visionUpdateTurret(targetPosition, targetVelocity) //Command the angle determined from the operation above
             }
         }
 
@@ -356,10 +375,15 @@ object ShooterSubsystem: Subsystem() {
 
         useHardware(turretRotationMotor) {
             idleMode = CANSparkMax.IdleMode.kBrake
+            setSmartCurrentLimit(20)
             enableVoltageCompensation(12.0)
         }
 
-        turretRotationGearbox.setAngularPosition(0.0.Radians)
+        useHardware(kickerMotor) {
+            setSmartCurrentLimit(20)
+        }
+
+        turretRotationGearbox.setAngularPosition(ShooterConstants.turretZeroOffset)
         turretController.setTolerance(2.0.Degrees.toRadians().value)
 
         on (Events.ENABLED) {
@@ -369,5 +393,7 @@ object ShooterSubsystem: Subsystem() {
         on (Events.TELEOP_ENABLED) {
             flywheelMachine.setState(FlywheelStates.PreSpin)
         }
+
+        SmartDashboard.putNumber("flywheel_rpm", 0.0)
     }
 }
