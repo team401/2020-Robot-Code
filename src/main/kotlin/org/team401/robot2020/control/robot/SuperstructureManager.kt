@@ -6,6 +6,7 @@ import org.snakeskin.rt.RealTimeTask
 import org.team401.robot2020.config.constants.ShooterConstants
 import org.team401.robot2020.subsystems.ShooterSubsystem
 import org.team401.sevision.VisionConstants
+import kotlin.math.roundToInt
 
 object SuperstructureManager : RealTimeTask() {
     enum class TurretAngleMode {
@@ -26,7 +27,7 @@ object SuperstructureManager : RealTimeTask() {
 
     @Synchronized override fun action(timestamp: TimeMeasureSeconds, dt: TimeMeasureSeconds) {
         //Report turret angle to RobotState
-        RobotState.addTurretObservation(timestamp, ShooterSubsystem.getTurretAngle())
+        RobotState.addTurretObservation(timestamp, ShooterSubsystem.getTurretAngle(), ShooterSubsystem.getTurretVelocity())
         updateTurretFromVision(timestamp)
     }
 
@@ -41,8 +42,7 @@ object SuperstructureManager : RealTimeTask() {
         val vehicleToTurretNow = RobotState.getVehicleToTurret(timestamp)
 
         val fieldToTurret = RobotState.getFieldToTurret(timestamp)
-        val fieldToPredictedTurret = RobotState.getPredictedFieldToVehicle(lookaheadTime)
-            .transformBy(vehicleToTurretNow) // field -> predicted turret
+        val fieldToPredictedTurret = RobotState.getPredictedFieldToTurret(lookaheadTime)
 
         val turretToPredictedTurret = fieldToTurret
             .inverse() // turret -> field
@@ -53,6 +53,8 @@ object SuperstructureManager : RealTimeTask() {
             .transformBy(latestAimingParameters.turretToGoal) // Predicted turret -> goal
 
         val correctedRangeToTarget = predictedTurretToGoal.translation.norm()
+
+        println(correctedRangeToTarget.roundToInt())
 
         val turretError = vehicleToTurretNow.rotation
             .inverse()

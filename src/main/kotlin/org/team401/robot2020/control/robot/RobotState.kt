@@ -4,6 +4,7 @@ import org.snakeskin.measure.Inches
 import org.snakeskin.measure.Seconds
 import org.snakeskin.measure.distance.angular.AngularDistanceMeasureRadians
 import org.snakeskin.measure.time.TimeMeasureSeconds
+import org.snakeskin.measure.velocity.angular.AngularVelocityMeasureRadiansPerSecond
 import org.team401.robot2020.config.constants.ShooterConstants
 import org.team401.robot2020.subsystems.DrivetrainSubsystem
 import org.team401.sevision.*
@@ -11,12 +12,17 @@ import org.team401.taxis.diffdrive.odometry.DifferentialDriveState
 import org.team401.taxis.geometry.Pose2d
 import org.team401.taxis.geometry.Rotation2d
 import org.team401.taxis.geometry.Translation2d
+import org.team401.taxis.geometry.Twist2d
 import org.team401.taxis.util.InterpolatingDouble
 import org.team401.taxis.util.InterpolatingTreeMap
 import kotlin.math.hypot
 
 object RobotState: DifferentialDriveState(100, DrivetrainSubsystem.model.driveKinematicsModel) {
     private val vehicleToTurret = InterpolatingTreeMap<InterpolatingDouble, Pose2d>(observationBufferSize)
+    var turretVelocityPredicted = Twist2d.identity()
+        @Synchronized get
+        private set
+
     private val cameraToGoal = InterpolatingTreeMap<InterpolatingDouble, Pose2d>(observationBufferSize)
 
     //private val visionTarget = GoalTracker()
@@ -33,9 +39,10 @@ object RobotState: DifferentialDriveState(100, DrivetrainSubsystem.model.driveKi
         //visionTarget.reset()
     }
 
-    @Synchronized fun addTurretObservation(timestamp: TimeMeasureSeconds, turretAngle: AngularDistanceMeasureRadians) {
+    @Synchronized fun addTurretObservation(timestamp: TimeMeasureSeconds, turretAngle: AngularDistanceMeasureRadians, turretVelocity: AngularVelocityMeasureRadiansPerSecond) {
         val rotation = Rotation2d.fromRadians((turretAngle - ShooterConstants.turretZeroOffset).value)
         vehicleToTurret[InterpolatingDouble(timestamp.value)] = Pose2d(ShooterConstants.robotToTurret, rotation)
+        turretVelocityPredicted = Twist2d(0.0, 0.0, turretVelocity.value)
     }
 
     private fun solveCameraToVisionTargetTranslation(target: TargetInfo, source: LimelightCamera): Translation2d? {
@@ -104,13 +111,26 @@ object RobotState: DifferentialDriveState(100, DrivetrainSubsystem.model.driveKi
         return getFieldToVehicle(timestamp).transformBy(getVehicleToTurret(timestamp))
     }
 
-    @Synchronized fun getFieldToVisionTarget(): Pose2d? {
-        //if (!visionTarget.hasTracks()) {
-        //    return null
-        //}
+    @Synchronized fun getLatestVehicleToTurret(): Map.Entry<InterpolatingDouble, Pose2d> {
+        return vehicleToTurret.lastEntry()
+    }
 
-        val fieldToTarget = lastSeenFieldToTarget//visionTarget.tracks[0].field_to_target
-        return Pose2d(fieldToTarget.translation, Rotation2d.identity()) //We know the target is at 0 degrees
+    @Synchronized fun getLatestFieldToTurret(): Pose2d {
+        return getLatestFieldToVehicle().value.transformBy(getLatestVehicleToTurret().value)
+    }
+
+    @Synchronized fun getPredictedVehicleToTurret(lookaheadTime: TimeMeasureSeconds): Pose2d {
+        return getLatestVehicleToTurret().value
+            .transformBy(Pose2d.exp(turretVelocityPredicted.scaled(lookaheadTime.value)))
+    }
+
+    @Synchronized fun getPredictedFieldToTurret(lookaheadTime: TimeMeasureSeconds): Pose2d {
+        return getPredictedFieldToVehicle(lookaheadTime)
+            .transformBy(getPredictedVehicleToTurret(lookaheadTime))
+    }
+
+    @Synchronized fun getFieldToVisionTarget(): Pose2d? {
+        return Pose2d(lastSeenFieldToTarget.translation, Rotation2d.identity()) //We know the target is at 0 degrees
     }
 
     @Synchronized fun getVehicleToVisionTarget(timestamp: TimeMeasureSeconds): Pose2d? {
@@ -120,44 +140,6 @@ object RobotState: DifferentialDriveState(100, DrivetrainSubsystem.model.driveKi
     }
 
     @Synchronized fun getAimingParameters(timestamp: TimeMeasureSeconds, prevTrackId: Int, maxTrackAge: Double): AimingParameters? {
-        //val reports = visionTarget.tracks
-        //if (reports.isEmpty()) return null
-
-        /*
-        val comparator = GoalTracker.TrackReportComparator(
-            VisionConstants.kTrackStabilityWeight,
-            VisionConstants.kTrackAgeWeight,
-            VisionConstants.kTrackSwitchingWeight,
-            prevTrackId,
-            timestamp.value
-        )
-        reports.sortWith(comparator)
-
-        var report: GoalTracker.TrackReport? = null
-        for (track in reports) {
-            if (track.latest_timestamp > timestamp.value - maxTrackAge) {
-                report = track
-                break
-            }
-        }
-        if (report == null) return null
-
-        val vehicleToGoal = getFieldToVehicle(timestamp)
-            .inverse()
-            .transformBy(report.field_to_target)
-            //Maybe need to transform by a target to goal offset, probably not needed
-
-        return AimingParameters(
-            vehicleToGoal,
-            report.field_to_target,
-            report.field_to_target.rotation,
-            report.latest_timestamp,
-            report.stability,
-            report.id
-        )
-
-         */
-
         val vehicleToGoal = getFieldToVehicle(timestamp)
             .inverse()
             .transformBy(lastSeenFieldToTarget)
@@ -175,25 +157,5 @@ object RobotState: DifferentialDriveState(100, DrivetrainSubsystem.model.driveKi
             0.0,
             0
         )
-    }
-
-    @Synchronized fun getTurretAimingParameters(timestamp: TimeMeasureSeconds): TurretAimingParameters {
-        val latestCameraToGoalEntry = cameraToGoal.lastEntry()
-        val latestCameraToGoal = latestCameraToGoalEntry.value
-        val latestCameraTimestamp = latestCameraToGoalEntry.key.value.Seconds
-
-        val fieldToVehicleAtFrame = getFieldToVehicle(latestCameraTimestamp)
-        val fieldToVehicleNow = getFieldToVehicle(timestamp)
-        val vehicleToTurretAtFrame = getVehicleToTurret(latestCameraTimestamp).rotation
-        val vehicleToTurretNow = getVehicleToTurret(timestamp).rotation
-
-        val fieldToTurretAtFrame = fieldToVehicleAtFrame.rotation.rotateBy(vehicleToTurretAtFrame)
-        val fieldToTurretNow = fieldToVehicleNow.rotation.rotateBy(vehicleToTurretNow)
-
-        val turretDelta = fieldToTurretNow.rotateBy(fieldToTurretAtFrame.inverse())
-        val correctedAngle = latestCameraToGoal.rotation.rotateBy(turretDelta.inverse())
-        val desiredTurretAngle = vehicleToTurretNow.rotateBy(correctedAngle)
-
-        return TurretAimingParameters(desiredTurretAngle, 0.0.Inches)
     }
 }

@@ -45,9 +45,9 @@ object ShooterConstants {
     //Flywheel dynamics
     val flywheelRatio = 18.0 / 30.0 // Total reduction of motor to flywheel shaft
 
-    val flywheelKs by SelectableDouble(0.446, 0.0) // volts
-    val flywheelKv by SelectableDouble(0.0116, 0.0) // volts / rev/s
-    val flywheelKa by SelectableDouble(0.000777, 0.0) //volts / rad/s/s
+    val flywheelKs by SelectableDouble(0.324, 0.0) // volts
+    val flywheelKv by SelectableDouble(0.0106, 0.0) // volts / rev/s
+    val flywheelKa by SelectableDouble(0.000438, 0.0) //volts / rad/s/s
 
     val flywheelKp by SelectableDouble(0.07, 0.0) // Talon FX p unit
 
@@ -64,14 +64,18 @@ object ShooterConstants {
 
     //LUT and regression
     val flywheelLUT = arrayOf(
-        doubleArrayOf(88.0, 3350.0),
-        doubleArrayOf(138.0, 3600.0),
-        doubleArrayOf(197.0, 3850.0),
-        doubleArrayOf(204.0, 3900.0),
-        doubleArrayOf(225.0, 4100.0)
+        doubleArrayOf(101.0, 3600.0),
+        doubleArrayOf(142.0, 3785.0),
+        doubleArrayOf(183.0, 4050.0),
+        doubleArrayOf(220.0, 4360.0),
+        doubleArrayOf(254.0, 4450.0)
     )
 
     val flywheelRegression = PolynomialRegression(flywheelLUT, 2)
 
     val turretZeroOffset = 40.0.Degrees.toRadians()
+}
+
+fun main() {
+    println(ShooterConstants.flywheelRegression.R2())
 }

@@ -16,6 +16,7 @@ import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
 import org.snakeskin.measure.*
 import org.snakeskin.measure.distance.angular.AngularDistanceMeasureRadians
+import org.snakeskin.utility.Ticker
 import org.team401.robot2020.config.constants.BallConstants
 import org.team401.robot2020.config.CANDevices
 import org.team401.robot2020.config.DIOChannels
@@ -195,8 +196,27 @@ object BallSubsystem : Subsystem() {
         }
 
         state(TowerStates.Shooting) {
-            action {
-                towerMotor.setPercentOutput(BallConstants.towerShootingPower)
+            var count = 0
+
+            val shooterTicker = Ticker({true}, .15.Seconds, actionRate)
+
+            entry {
+                count = 0
+            }
+
+            rtAction { timestamp, dt ->
+                if (ShooterSubsystem.isShotReady()) {
+                    count++
+                } else {
+                    count = 0
+                }
+
+                if (count >= 15) {
+                    towerMotor.setPercentOutput(BallConstants.towerShootingPower)
+                    count = 15
+                } else {
+                    towerMotor.stop()
+                }
             }
         }
 
@@ -290,6 +310,7 @@ object BallSubsystem : Subsystem() {
         useHardware(towerMotor) {
             inverted = true
             pidController.p = BallConstants.intakeArmKp
+            setSmartCurrentLimit(40)
         }
 
         useHardware(intakeArmMotor) {

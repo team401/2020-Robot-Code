@@ -24,8 +24,6 @@ class VelocityProfiler(private val acceleration: AngularAccelerationMeasureRadia
     var accelerationCommand = 0.0.RadiansPerSecondPerSecond
         private set
 
-    var atSetpoint by AsyncBoolean(false)
-
     /**
      * Resets the velocity command to the given value, and zeroes the acceleration
      */

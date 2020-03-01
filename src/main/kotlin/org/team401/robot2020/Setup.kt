@@ -1,5 +1,6 @@
 package org.team401.robot2020
 
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 import org.snakeskin.auto.AutoManager
 import org.snakeskin.dsl.*
 import org.snakeskin.measure.Seconds
@@ -10,6 +11,7 @@ import org.snakeskin.runtime.SnakeskinRuntime
 import org.snakeskin.utility.value.AsyncBoolean
 import org.snakeskin.utility.value.SelectableValue
 import org.team401.robot2020.config.constants.RobotConstants
+import org.team401.robot2020.config.constants.ShooterConstants
 import org.team401.robot2020.control.robot.RobotState
 import org.team401.robot2020.control.robot.SuperstructureManager
 import org.team401.robot2020.control.robot.TurretLimelight
@@ -35,7 +37,7 @@ fun setup() {
     RealTimeTasks.add(OdometryTracker(DrivetrainSubsystem))
     //TurretLimelight.ledOff()
 
-    val limelight = LimelightCamera("turret", Pose2d(-2.625, 0.0, Rotation2d.identity()), 42.25, Rotation2d.fromDegrees(33.5))
+    val limelight = LimelightCamera("turret", Pose2d(-2.625, 0.0, Rotation2d.fromDegrees(-2.0)), 42.25, Rotation2d.fromDegrees(28.9))
 
     val updaterTask = object : RealTimeTask() {
         override fun action(timestamp: TimeMeasureSeconds, dt: TimeMeasureSeconds) {
@@ -56,4 +58,8 @@ fun setup() {
     }
 
     RealTimeTasks.add(updaterTask, SuperstructureManager)
+
+    SmartDashboard.putNumber("camera_angle", 0.0)
+
+    println("SHOOTER R^2: ${ShooterConstants.flywheelRegression.R2()}")
 }

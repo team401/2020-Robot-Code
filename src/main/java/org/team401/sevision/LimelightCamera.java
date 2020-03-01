@@ -67,6 +67,18 @@ public class LimelightCamera {
         return horizontalPlaneToLens;
     }
 
+    public void setOriginToLens(Pose2d originToLens) {
+        this.originToLens = originToLens;
+    }
+
+    public void setLensHeight(double lensHeight) {
+        this.lensHeight = lensHeight;
+    }
+
+    public void setHorizontalPlaneToLens(Rotation2d horizontalPlaneToLens) {
+        this.horizontalPlaneToLens = horizontalPlaneToLens;
+    }
+
     public synchronized void markPipeline1xZoom() {
         currentVPW = VPW1x;
         currentVPH = VPH1x;
@@ -148,6 +160,7 @@ public class LimelightCamera {
 
     private double[] xCorners = new double[4];
     private double[] yCorners = new double[4];
+    private int numCorners = 4;
 
     /**
      * Returns raw top-left and top-right corners
@@ -156,23 +169,29 @@ public class LimelightCamera {
      */
     private List<double[]> getTopCorners() {
         double[] xyCorners = tcornxyEntry.getDoubleArray(ZERO_ARRAY);
+        numCorners = xyCorners.length / 2;
+        if (numCorners > xCorners.length || numCorners > yCorners.length) {
+            //Resize arrays
+            xCorners = new double[numCorners];
+            yCorners = new double[numCorners];
+        }
 
         sawTarget = seesTargetNow();
         // something went wrong
-        if (!sawTarget || Arrays.equals(xyCorners, ZERO_ARRAY) || xyCorners.length != 8) {
+        if (!sawTarget || Arrays.equals(xyCorners, ZERO_ARRAY) || numCorners < 4) {
             return null;
         }
 
-        xCorners[0] = xyCorners[0];
-        yCorners[0] = xyCorners[1];
-        xCorners[1] = xyCorners[2];
-        yCorners[1] = xyCorners[3];
-        xCorners[2] = xyCorners[4];
-        yCorners[2] = xyCorners[5];
-        xCorners[3] = xyCorners[6];
-        yCorners[3] = xyCorners[7];
+        //Unpack xyCorners into separate arrays
+        for (int i = 0; i < xyCorners.length; i += 2) {
+            xCorners[i / 2] = xyCorners[i];
+        }
 
-        return extractTopCornersFromBoundingBox(xCorners, yCorners);
+        for (int i = 1; i < xyCorners.length; i += 2) {
+            yCorners[i / 2] = xyCorners[i];
+        }
+
+        return extractTopCornersFromBoundingBox();
     }
 
     private static final Comparator<Translation2d> xSort = Comparator.comparingDouble(Translation2d::x);
@@ -183,9 +202,9 @@ public class LimelightCamera {
      *
      * @return list of corners: index 0 - top left, index 1 - top right
      */
-    private static List<double[]> extractTopCornersFromBoundingBox(double[] xCorners, double[] yCorners) {
+    private List<double[]> extractTopCornersFromBoundingBox() {
         List<Translation2d> corners = new ArrayList<>();
-        for (int i = 0; i < xCorners.length; i++) {
+        for (int i = 0; i < numCorners; i++) {
             corners.add(new Translation2d(xCorners[i], yCorners[i]));
         }
 

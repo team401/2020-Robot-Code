@@ -47,7 +47,7 @@ object ShooterSubsystem: Subsystem() {
     )
 
     private val shooterMotorB = Hardware.createTalonFX(
-        CANDevices.shooterMotorA.canID,
+        CANDevices.shooterMotorB.canID,
         mockProducer = NullTalonFxDevice.producer
     )
 
@@ -115,6 +115,14 @@ object ShooterSubsystem: Subsystem() {
 
     fun getTurretAngle(): AngularDistanceMeasureRadians {
         return turretRotationGearbox.getAngularPosition()
+    }
+
+    fun getTurretVelocity(): AngularVelocityMeasureRadiansPerSecond {
+        return turretRotationGearbox.getAngularVelocity()
+    }
+
+    fun isShotReady(): Boolean {
+        return true//shooterGearbox.getAngularVelocity().toRevolutionsPerMinute() > flywheelProfiler.velocityCommand.toRevolutionsPerMinute() - 20.0.RevolutionsPerMinute
     }
 
     fun getTurretRotation(): Rotation2d {
@@ -209,20 +217,21 @@ object ShooterSubsystem: Subsystem() {
             lateinit var session: LoggerSession
 
             entry {
-                //session = LoggerSession("10.4.1.162", 5801)
+                session = LoggerSession("10.4.1.162", 5801)
                 flywheelProfiler.reset(shooterGearbox.getAngularVelocity().toRadiansPerSecond())
             }
 
             rtAction { timestamp, dt ->
                 updateFlywheel(dt, ShooterConstants.flywheelRegression.predict(SuperstructureManager.distanceFromTarget.value).RevolutionsPerMinute.toRadiansPerSecond())
-
-                //session["Timestamp (s)"] = timestamp.value
-                //session["Velocity (RPM)"] = shooterGearbox.getAngularVelocity().toRevolutionsPerMinute().value
-                //session.publish()
+                //updateFlywheel(dt, SmartDashboard.getNumber("flywheel_rpm", 0.0).RevolutionsPerMinute.toRadiansPerSecond())
+                session["Timestamp (s)"] = timestamp.value
+                session["Velocity Command (RPM)"] = flywheelProfiler.velocityCommand.toRevolutionsPerMinute().value
+                session["Velocity (RPM)"] = shooterGearbox.getAngularVelocity().toRevolutionsPerMinute().value
+                session.publish()
             }
 
             exit {
-                //session.end()
+                session.end()
             }
         }
 
@@ -232,9 +241,6 @@ object ShooterSubsystem: Subsystem() {
             }
 
             rtAction { timestamp, dt ->
-                val aimingParameters = RobotState.getTurretAimingParameters(timestamp)
-                //TODO add velocity calculation (LUT/regression?)
-                updateFlywheel(dt, 0.0.RadiansPerSecond)
             }
         }
 
@@ -358,10 +364,15 @@ object ShooterSubsystem: Subsystem() {
             inverted = false
             setNeutralMode(NeutralMode.Coast)
             configOpenloopRamp(0.0)
+            configClosedloopRamp(0.0)
             configNeutralDeadband(0.0)
+            configSelectedFeedbackSensor(TalonFXFeedbackDevice.IntegratedSensor, 0, 1000)
             setControlFramePeriod(ControlFrame.Control_3_General, 5)
-            setStatusFramePeriod(StatusFrame.Status_1_General, 5)
-            setStatusFramePeriod(StatusFrame.Status_2_Feedback0, 5)
+            setStatusFramePeriod(StatusFrameEnhanced.Status_1_General, 10, 1000)
+            setStatusFramePeriod(StatusFrameEnhanced.Status_2_Feedback0, 5, 1000)
+            configVelocityMeasurementWindow(1, 1000)
+            configVelocityMeasurementPeriod(VelocityMeasPeriod.Period_50Ms, 1000)
+
             enableVoltageCompensation(true)
             configVoltageCompSaturation(12.0)
         }
@@ -388,10 +399,6 @@ object ShooterSubsystem: Subsystem() {
 
         on (Events.ENABLED) {
             turretMachine.setState(TurretStates.Hold)
-        }
-
-        on (Events.TELEOP_ENABLED) {
-            flywheelMachine.setState(FlywheelStates.PreSpin)
         }
 
         SmartDashboard.putNumber("flywheel_rpm", 0.0)
