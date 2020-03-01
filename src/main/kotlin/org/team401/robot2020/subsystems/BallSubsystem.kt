@@ -1,8 +1,6 @@
 package org.team401.robot2020.subsystems
 
 import com.ctre.phoenix.motorcontrol.NeutralMode
-import com.revrobotics.CANSparkMax
-import com.revrobotics.CANSparkMaxLowLevel
 import org.snakeskin.component.impl.*
 import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
@@ -17,13 +15,13 @@ import org.team401.robot2020.config.PneumaticDevices
  */
 object BallSubsystem : Subsystem() {
     //<editor-fold desc="Hardware Devices">
-    private val flyingVMotorA = Hardware.createVictorSPX(
-        CANDevices.flyingVMotorA.canID,
+    private val flyingVMotorLeft = Hardware.createVictorSPX(
+        CANDevices.flyingVMotorLeft.canID,
         mockProducer = NullVictorSpxDevice.producer
     )
 
-    private val flyingVMotorB = Hardware.createVictorSPX(
-        CANDevices.flyingVMotorB.canID,
+    private val flyingVMotorRight = Hardware.createVictorSPX(
+        CANDevices.flyingVMotorRight.canID,
         mockProducer = NullVictorSpxDevice.producer
     )
 
@@ -186,37 +184,37 @@ object BallSubsystem : Subsystem() {
     val flyingVMachine: StateMachine<FlyingVStates> = stateMachine {
         state(FlyingVStates.Intaking) {
             action {
-                flyingVMotorA.setPercentOutput(BallConstants.flyingVLeftIntakingPower)
-                flyingVMotorB.setPercentOutput(BallConstants.flyingVRightIntakingPower)
+                flyingVMotorLeft.setPercentOutput(BallConstants.flyingVLeftIntakingPower)
+                flyingVMotorRight.setPercentOutput(BallConstants.flyingVRightIntakingPower)
             }
         }
 
         state(FlyingVStates.Shooting) {
             action {
-                flyingVMotorA.setPercentOutput(BallConstants.flyingVShootingPower)
-                flyingVMotorB.setPercentOutput(BallConstants.flyingVShootingPower)
+                flyingVMotorLeft.setPercentOutput(BallConstants.flyingVShootingPower)
+                flyingVMotorRight.setPercentOutput(BallConstants.flyingVShootingPower)
             }
         }
 
         state(FlyingVStates.Idle) {
             tickedAction(BallConstants.flyingVIdleTimeout, {
-                flyingVMotorA.setPercentOutput(BallConstants.flyingVIdlePower)
-                flyingVMotorB.setPercentOutput(BallConstants.flyingVIdlePower)
+                flyingVMotorLeft.setPercentOutput(BallConstants.flyingVIdlePower)
+                flyingVMotorRight.setPercentOutput(BallConstants.flyingVIdlePower)
                 towerMachine.isInState(TowerStates.Waiting)
             }, { disable() })
         }
 
         state(FlyingVStates.ManualReverse) {
             action {
-                flyingVMotorA.setPercentOutput(BallConstants.flyingVReversingPower)
-                flyingVMotorB.setPercentOutput(BallConstants.flyingVReversingPower)
+                flyingVMotorLeft.setPercentOutput(BallConstants.flyingVReversingPower)
+                flyingVMotorRight.setPercentOutput(BallConstants.flyingVReversingPower)
             }
         }
 
         disabled {
             action {
-                flyingVMotorA.stop()
-                flyingVMotorB.stop()
+                flyingVMotorLeft.stop()
+                flyingVMotorRight.stop()
             }
         }
     }
@@ -252,17 +250,17 @@ object BallSubsystem : Subsystem() {
 
     override fun setup() {
         towerMotor.invert(true)
-        flyingVMotorA.invert(true)
-        flyingVMotorB.invert(false)
+        flyingVMotorLeft.invert(true)
+        flyingVMotorRight.invert(false)
 
         useHardware(towerMotor) {
         }
 
-        useHardware(flyingVMotorA) {
+        useHardware(flyingVMotorLeft) {
             setNeutralMode(NeutralMode.Brake)
         }
 
-        useHardware(flyingVMotorB) {
+        useHardware(flyingVMotorRight) {
             setNeutralMode(NeutralMode.Brake)
         }
 
