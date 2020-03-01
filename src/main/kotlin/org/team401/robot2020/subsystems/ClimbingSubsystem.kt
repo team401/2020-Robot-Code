@@ -1,5 +1,6 @@
 package org.team401.robot2020.subsystems
 
+import com.ctre.phoenix.motorcontrol.NeutralMode
 import com.revrobotics.CANSparkMax
 import edu.wpi.first.wpilibj.controller.ElevatorFeedforward
 import edu.wpi.first.wpilibj.controller.PIDController
@@ -9,10 +10,12 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 import edu.wpi.first.wpilibj.trajectory.TrapezoidProfile
 import org.snakeskin.component.Gearbox
 import org.snakeskin.component.LinearTransmission
+import org.snakeskin.component.SmartGearbox
 import org.snakeskin.component.SparkMaxOutputVoltageReadingMode
 import org.snakeskin.component.impl.NullCanCoderDevice
 import org.snakeskin.component.impl.NullPneumaticChannel
 import org.snakeskin.component.impl.NullSparkMaxDevice
+import org.snakeskin.component.impl.NullTalonSrxDevice
 import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
 import org.snakeskin.measure.*
@@ -33,33 +36,23 @@ import kotlin.time.milliseconds
 
 object ClimbingSubsystem : Subsystem() {
     //<editor-fold desc="Hardware Devices">
-    private val climbLeftElevatorMotor = Hardware.createBrushlessSparkMax(
+    private val climbLeftElevatorMotor = Hardware.createTalonSRX(
         CANDevices.climbLeftElevatorMotor.canID,
-        SparkMaxOutputVoltageReadingMode.MultiplyVbusDevice,
-        mockProducer = NullSparkMaxDevice.producer
+        mockProducer = NullTalonSrxDevice.producer
     )
-    private val climbRightElevatorMotor = Hardware.createBrushlessSparkMax(
+    private val climbRightElevatorMotor = Hardware.createTalonSRX(
         CANDevices.climbRightElevatorMotor.canID,
-        SparkMaxOutputVoltageReadingMode.MultiplyVbusDevice,
-        mockProducer = NullSparkMaxDevice.producer
+        mockProducer = NullTalonSrxDevice.producer
     )
 
-    private val climbLeftElevatorEncoder = Hardware.createCANCoder(
-        CANDevices.climbLeftElevatorEncoder,
-        mockProducer = NullCanCoderDevice.producer
-    )
-    private val climbRightElevatorEncoder = Hardware.createCANCoder(
-        CANDevices.climbRightElevatorEncoder,
-        mockProducer = NullCanCoderDevice.producer
-    )
 
     private val lockingPiston= Hardware.createPneumaticChannel(
         PneumaticDevices.climbingLock,
         halMock = true
     )
 
-    private val leftElevator = LinearTransmission(Gearbox(climbLeftElevatorEncoder, climbLeftElevatorMotor), ClimbingConstants.pitchRadius)
-    private val rightElevator = LinearTransmission(Gearbox(climbRightElevatorEncoder, climbRightElevatorMotor), ClimbingConstants.pitchRadius)
+    private val leftElevator = LinearTransmission(SmartGearbox(climbLeftElevatorMotor), ClimbingConstants.pitchRadius)
+    private val rightElevator = LinearTransmission(SmartGearbox(climbRightElevatorMotor), ClimbingConstants.pitchRadius)
     //</editor-fold>
 
     //<editor-fold desc="Models and Controllers">
@@ -392,13 +385,15 @@ object ClimbingSubsystem : Subsystem() {
         rightElevator.gearbox.invert(true)
 
         useHardware(climbRightElevatorMotor) {
-            enableVoltageCompensation(12.0)
-            idleMode = CANSparkMax.IdleMode.kBrake
+            enableVoltageCompensation(true)
+            configVoltageCompSaturation(12.0)
+            setNeutralMode(NeutralMode.Brake)
         }
 
         useHardware(climbLeftElevatorMotor) {
-            enableVoltageCompensation(12.0)
-            idleMode = CANSparkMax.IdleMode.kBrake
+            enableVoltageCompensation(true)
+            configVoltageCompSaturation(12.0)
+            setNeutralMode(NeutralMode.Brake)
         }
 
         resetClimberPosition()

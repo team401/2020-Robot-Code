@@ -14,17 +14,15 @@ object CANDevices {
 
     //Ball subsystem
     val turretRotationMotor = PoweredCANDevice(8, 0) //SPARK MAX + NEO 550
-    val flyingVMotors = PoweredCANDevice(6, 0) //Talon SRX + 2 bag motors
-    val towerMotor = PoweredCANDevice(5, 0) //SPARK MAX + NEO 550
-    val intakeWheelsMotor = PoweredCANDevice(1, 0) //SPARK MAX + NEO 550
-    val intakePivotMotor = PoweredCANDevice(2, 0) //SPARK MAX + NEO 550
+    val flyingVMotorLeft = PoweredCANDevice(7, 0) //Victor SPX + 775 Pro
+    val flyingVMotorRight = PoweredCANDevice(6, 0) //Victor SPX + 775 Pro
+    val towerMotor = PoweredCANDevice(5, 0) //TalonFX + Falcon 500
+    val intakeWheelsMotor = PoweredCANDevice(1, 0) //Victor SPX + 775 Pro
     val kickerMotor = PoweredCANDevice(10, 0) //SPARK MAX + NEO 550
-    val shooterMotorA = PoweredCANDevice(11, 0) //SPARK MAX + NEO
-    val shooterMotorB = PoweredCANDevice(12, 0) //SPARK MAX + NEO
-    val climbLeftElevatorMotor = PoweredCANDevice(4, 0) //SPARK MAX + NEO 550
-    val climbRightElevatorMotor = PoweredCANDevice(3, 0) //SPARK MAX + NEO 550
-    const val climbLeftElevatorEncoder = 0
-    const val climbRightElevatorEncoder = 1
+    val shooterMotorA = PoweredCANDevice(11, 0) //TalonFX + Falcon 500
+    val shooterMotorB = PoweredCANDevice(12, 0) //TalonFX + Falcon 500
+    val climbLeftElevatorMotor = PoweredCANDevice(4, 0) //Talon SRX + 775 Pro
+    val climbRightElevatorMotor = PoweredCANDevice(3, 0) //Talon SRX + 775 Pr
 
     //Spinner
     val spinnerMotor = PoweredCANDevice(9, 0) //SPARK MAX + NEO 550

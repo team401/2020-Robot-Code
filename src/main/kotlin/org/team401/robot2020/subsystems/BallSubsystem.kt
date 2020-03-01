@@ -1,57 +1,45 @@
 package org.team401.robot2020.subsystems
 
 import com.ctre.phoenix.motorcontrol.NeutralMode
-import com.revrobotics.CANSparkMax
-import com.revrobotics.CANSparkMaxLowLevel
-import edu.wpi.first.wpilibj.controller.ArmFeedforward
-import edu.wpi.first.wpilibj.controller.ProfiledPIDController
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
-import edu.wpi.first.wpilibj.trajectory.TrapezoidProfile
-import org.snakeskin.component.SmartGearbox
-import org.snakeskin.component.SparkMaxOutputVoltageReadingMode
-import org.snakeskin.component.impl.NullDigitalInputChannel
-import org.snakeskin.component.impl.NullSparkMaxDevice
-import org.snakeskin.component.impl.NullTalonSrxDevice
+import org.snakeskin.component.impl.*
 import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
 import org.snakeskin.measure.*
-import org.snakeskin.measure.distance.angular.AngularDistanceMeasureRadians
 import org.snakeskin.utility.Ticker
 import org.team401.robot2020.config.constants.BallConstants
 import org.team401.robot2020.config.CANDevices
-import org.team401.robot2020.config.DIOChannels
-import org.team401.robot2020.config.constants.RobotConstants
-import org.team401.robot2020.util.CharacterizationRoutine
-import org.team401.robot2020.util.inverted
+import org.team401.robot2020.config.PneumaticDevices
 
 /**
  * Ball handling subsystem, including the intake, flying V, and tower components.
  */
 object BallSubsystem : Subsystem() {
     //<editor-fold desc="Hardware Devices">
-    private val flyingVMotors = Hardware.createTalonSRX(
-        CANDevices.flyingVMotors.canID,
-        mockProducer = NullTalonSrxDevice.producer
+    private val flyingVMotorLeft = Hardware.createVictorSPX(
+        CANDevices.flyingVMotorLeft.canID,
+        mockProducer = NullVictorSpxDevice.producer
     )
-    private val towerMotor = Hardware.createBrushlessSparkMax(
+
+    private val flyingVMotorRight = Hardware.createVictorSPX(
+        CANDevices.flyingVMotorRight.canID,
+        mockProducer = NullVictorSpxDevice.producer
+    )
+
+    private val towerMotor = Hardware.createTalonFX(
         CANDevices.towerMotor.canID,
-        SparkMaxOutputVoltageReadingMode.MultiplyVbusDevice,
-        mockProducer = NullSparkMaxDevice.producer
+        mockProducer = NullTalonFxDevice.producer
     )
 
-    private val intakeWheelsMotor = Hardware.createBrushlessSparkMax(
+    private val intakeWheelsMotor = Hardware.createVictorSPX(
         CANDevices.intakeWheelsMotor.canID,
-        mockProducer = NullSparkMaxDevice.producer
+        mockProducer = NullVictorSpxDevice.producer
     )
 
-    private val intakeArmMotor = Hardware.createBrushlessSparkMaxWithEncoder(
-        CANDevices.intakePivotMotor.canID,
-        8192, //REV Through Bore Encoder
-        SparkMaxOutputVoltageReadingMode.MultiplyVbusDevice,
-        mockProducer = NullSparkMaxDevice.producer
+    private val intakeExtenderPistons = Hardware.createPneumaticChannel(
+        PneumaticDevices.intakeExtenders,
+        mockProducer = NullPneumaticChannel.producer
     )
 
-    private val intakeArmGearbox = SmartGearbox(intakeArmMotor)
 
     private val bottomGateSensor = NullDigitalInputChannel.INSTANCE /*Hardware.createDigitalInputChannel(
         DIOChannels.towerBottomGateSensor,
@@ -63,40 +51,6 @@ object BallSubsystem : Subsystem() {
         halMock = true
     ).inverted() */
     //</editor-fold>
-
-    //<editor-fold desc="Models and Controllers">
-    private val intakeArmModel = ArmFeedforward(
-        BallConstants.intakeArmKs,
-        BallConstants.intakeArmKcos,
-        BallConstants.intakeArmKv
-    )
-
-    private val intakeArmConstraints = TrapezoidProfile.Constraints(
-        BallConstants.intakeArmVelocity.value,
-        BallConstants.intakeArmAcceleration.value
-    )
-    private val intakeArmController = ProfiledPIDController(
-        BallConstants.intakeArmKp, 0.0, 0.0,
-        intakeArmConstraints,
-        RobotConstants.rtPeriod.value
-    )
-
-    val armCharacterizationRoutine = CharacterizationRoutine(intakeArmGearbox, intakeArmGearbox)
-    //</editor-fold>
-
-    private fun resetIntakeArm() {
-        intakeArmController.reset(intakeArmGearbox.getAngularPosition().toRadians().value)
-    }
-
-    private fun updateIntakeArm(angle: AngularDistanceMeasureRadians) {
-        val position = intakeArmGearbox.getAngularPosition().toRadians().value
-        val feedbackVolts = intakeArmController.calculate(position, angle.value)
-        val ffVolts = intakeArmModel.calculate(intakeArmController.setpoint.position, intakeArmController.setpoint.velocity)
-
-        val out = (feedbackVolts + ffVolts) / 12.0
-
-        intakeArmGearbox.setPercentOutput(out)
-    }
 
     enum class TowerStates {
         Waiting, //Default state, waiting for ball to trip the bottom gate
@@ -230,32 +184,37 @@ object BallSubsystem : Subsystem() {
     val flyingVMachine: StateMachine<FlyingVStates> = stateMachine {
         state(FlyingVStates.Intaking) {
             action {
-                flyingVMotors.setPercentOutput(BallConstants.flyingVIntakingPower)
+                flyingVMotorLeft.setPercentOutput(BallConstants.flyingVLeftIntakingPower)
+                flyingVMotorRight.setPercentOutput(BallConstants.flyingVRightIntakingPower)
             }
         }
 
         state(FlyingVStates.Shooting) {
             action {
-                flyingVMotors.setPercentOutput(BallConstants.flyingVShootingPower)
+                flyingVMotorLeft.setPercentOutput(BallConstants.flyingVShootingPower)
+                flyingVMotorRight.setPercentOutput(BallConstants.flyingVShootingPower)
             }
         }
 
         state(FlyingVStates.Idle) {
             tickedAction(BallConstants.flyingVIdleTimeout, {
-                flyingVMotors.setPercentOutput(BallConstants.flyingVIdlePower)
+                flyingVMotorLeft.setPercentOutput(BallConstants.flyingVIdlePower)
+                flyingVMotorRight.setPercentOutput(BallConstants.flyingVIdlePower)
                 towerMachine.isInState(TowerStates.Waiting)
             }, { disable() })
         }
 
         state(FlyingVStates.ManualReverse) {
             action {
-                flyingVMotors.setPercentOutput(BallConstants.flyingVReversingPower)
+                flyingVMotorLeft.setPercentOutput(BallConstants.flyingVReversingPower)
+                flyingVMotorRight.setPercentOutput(BallConstants.flyingVReversingPower)
             }
         }
 
         disabled {
             action {
-                flyingVMotors.stop()
+                flyingVMotorLeft.stop()
+                flyingVMotorRight.stop()
             }
         }
     }
@@ -263,70 +222,49 @@ object BallSubsystem : Subsystem() {
     val intakeMachine: StateMachine<IntakeStates> = stateMachine {
         state(IntakeStates.Stowed) {
             entry {
-                resetIntakeArm()
+                intakeExtenderPistons.setState(false)
             }
 
-            rtAction { timestamp, dt ->
-                //updateIntakeArm(0.0.Radians)
-                updateIntakeArm((-90.0).Degrees.toRadians())
+            action {
                 intakeWheelsMotor.stop()
             }
         }
 
         state(IntakeStates.Intake) {
             entry {
-                resetIntakeArm()
+                intakeExtenderPistons.setState(true)
             }
 
-            rtAction { timestamp, dt ->
-                updateIntakeArm((-90.0).Degrees.toRadians())
+            action {
                 intakeWheelsMotor.setPercentOutput(1.0)
-            }
-        }
-
-        state(IntakeStates.GoToStow) {
-            timeout(0.3.Seconds, IntakeStates.Stowed)
-
-            entry {
-                resetIntakeArm()
-            }
-
-            rtAction { timestamp, dt ->
-                //updateIntakeArm(0.0.Radians)
-                updateIntakeArm((-90.0).Degrees.toRadians())
-                intakeWheelsMotor.setPercentOutput(-0.75)
             }
         }
 
         disabled {
             action {
-                intakeArmGearbox.stop()
+                intakeExtenderPistons.setState(false)
                 intakeWheelsMotor.stop()
             }
         }
     }
 
     override fun setup() {
+        towerMotor.invert(true)
+        flyingVMotorLeft.invert(true)
+        flyingVMotorRight.invert(false)
+
         useHardware(towerMotor) {
-            inverted = true
-            pidController.p = BallConstants.intakeArmKp
-            setSmartCurrentLimit(40)
         }
 
-        useHardware(intakeArmMotor) {
-            inverted = true
-            idleMode = CANSparkMax.IdleMode.kBrake
-            enableVoltageCompensation(12.0)
-            setPeriodicFramePeriod(CANSparkMaxLowLevel.PeriodicFrame.kStatus1, 10)
-            setPeriodicFramePeriod(CANSparkMaxLowLevel.PeriodicFrame.kStatus2, 10)
-        }
-
-        useHardware(flyingVMotors) {
+        useHardware(flyingVMotorLeft) {
             setNeutralMode(NeutralMode.Brake)
-            inverted = true
         }
 
-        intakeArmGearbox.setAngularPosition(0.0.Radians)
+        useHardware(flyingVMotorRight) {
+            setNeutralMode(NeutralMode.Brake)
+        }
+
+        intakeExtenderPistons.setState(false)
 
         on (Events.ENABLED) {
             towerMachine.setState(TowerStates.Waiting)
