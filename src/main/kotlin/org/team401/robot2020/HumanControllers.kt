@@ -69,21 +69,12 @@ object HumanControllers {
                 SuperstructureManager.activeControlMode = SuperstructureManager.TurretAngleMode.Vision
                 visionEnabled = true
                 SuperstructureRoutines.prepareForShooting()
+                SuperstructureRoutines.fireShooter()
             }
 
             returns(0.5) {
                 SuperstructureRoutines.stopShooting()
                 visionEnabled = false
-            }
-        }
-
-        whenButton(Buttons.Y) {
-            pressed {
-                SuperstructureRoutines.fireShooter()
-            }
-
-            released {
-                SuperstructureRoutines.stopShooting()
             }
         }
 

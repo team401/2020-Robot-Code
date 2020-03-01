@@ -1,6 +1,7 @@
 package org.team401.robot2020.subsystems
 
 import com.ctre.phoenix.motorcontrol.NeutralMode
+import org.snakeskin.component.SparkMaxOutputVoltageReadingMode
 import org.snakeskin.component.impl.*
 import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
@@ -25,9 +26,16 @@ object BallSubsystem : Subsystem() {
         mockProducer = NullVictorSpxDevice.producer
     )
 
-    private val towerMotor = Hardware.createTalonFX(
+    /*private val towerMotor = Hardware.createTalonFX(
         CANDevices.towerMotor.canID,
         mockProducer = NullTalonFxDevice.producer
+    )
+     */
+
+    private val towerMotor = Hardware.createBrushlessSparkMax(
+        CANDevices.towerMotor.canID,
+        SparkMaxOutputVoltageReadingMode.MultiplyVbusDevice,
+        mockProducer = NullSparkMaxDevice.producer
     )
 
     private val intakeWheelsMotor = Hardware.createVictorSPX(
@@ -254,6 +262,8 @@ object BallSubsystem : Subsystem() {
         flyingVMotorRight.invert(false)
 
         useHardware(towerMotor) {
+            inverted = true
+            setSmartCurrentLimit(40)
         }
 
         useHardware(flyingVMotorLeft) {
