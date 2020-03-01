@@ -6,13 +6,6 @@ import org.snakeskin.measure.Seconds
 import org.snakeskin.utility.value.SelectableDouble
 
 object BallConstants {
-    val intakeArmKs by SelectableDouble(0.758, 0.0)
-    val intakeArmKv by SelectableDouble(0.431, 0.0)
-    val intakeArmKcos by SelectableDouble(0.465, 0.0)
-    val intakeArmKp by SelectableDouble(6.0, 0.0)
-    val intakeArmVelocity =  (180.0.Degrees / .75.Seconds).toRadiansPerSecond()
-    val intakeArmAcceleration = intakeArmVelocity / 0.2.Seconds
-
     val towerKp = 0.00015
     val towerFeedingRate = 5000.0.RevolutionsPerMinute
 
@@ -22,8 +15,8 @@ object BallConstants {
     val towerShootingPower = 0.75
     val towerManualReversePower = -.5
 
-
-    val flyingVIntakingPower = 1.0
+    val flyingVLeftIntakingPower = 1.0
+    val flyingVRightIntakingPower = .75
     val flyingVShootingPower = 1.0
     val flyingVReversingPower = -1.0
     val flyingVIdlePower = 1.0
