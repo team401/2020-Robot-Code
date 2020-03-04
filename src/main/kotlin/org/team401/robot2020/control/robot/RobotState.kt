@@ -187,7 +187,8 @@ object RobotState: DifferentialDriveState(100, DrivetrainSubsystem.model.driveKi
             .inverse() // Turret -> Field
             .transformBy(fieldToTargetLock.fieldToTarget) // Turret -> Target
 
-        val vehicleToGoalRotation = vehicleToGoal.translation.direction() //Rotation of vehicle to goal is always direction of vector translation
+        val vehicleToGoalDirection = vehicleToGoal.translation.direction() //Directions of vectors oriented at the target
+        val turretToGoalDirection = turretToGoal.translation.direction()
 
         val vehicleToTurretNow = getVehicleToTurret(timestamp)
 
@@ -206,12 +207,12 @@ object RobotState: DifferentialDriveState(100, DrivetrainSubsystem.model.driveKi
 
         val turretError = vehicleToTurretNow.rotation //Relative rotation the turret must perform to align with the goal
             .inverse()
-            .rotateBy(vehicleToGoalRotation)
+            .rotateBy(turretToGoalDirection)
 
         val vehicleRange = vehicleToGoal.translation.norm()
         val vehicleVelocity = vehicleVelocityMeasured
         val feedVelocity = (-1.0 * //Invert direction to have turret oppose robot motion
-                ((vehicleToGoalRotation.sin() * vehicleVelocity.dx / vehicleRange) //Handle tangential movement of the robot around the goal
+                ((vehicleToGoalDirection.sin() * vehicleVelocity.dx / vehicleRange) //Handle tangential movement of the robot around the goal
                         + vehicleVelocity.dtheta)).RadiansPerSecond //Handle rotational velocity of the robot
 
         val params = ShooterTargetingParameters(timestamp, turretError, feedVelocity, correctedRangeToTarget)
