@@ -10,6 +10,7 @@ import org.snakeskin.utility.Ticker
 import org.team401.robot2020.config.constants.BallConstants
 import org.team401.robot2020.config.CANDevices
 import org.team401.robot2020.config.PneumaticDevices
+import org.team401.robot2020.config.constants.RobotConstants
 
 /**
  * Ball handling subsystem, including the intake, flying V, and tower components.
@@ -160,7 +161,7 @@ object BallSubsystem : Subsystem() {
         state(TowerStates.Shooting) {
             var count = 0
 
-            val shooterTicker = Ticker({true}, .15.Seconds, actionRate)
+            val shooterTicker = Ticker({true}, .15.Seconds, RobotConstants.rtPeriod)
 
             entry {
                 count = 0

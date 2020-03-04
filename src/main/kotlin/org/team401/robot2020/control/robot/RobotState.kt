@@ -1,6 +1,7 @@
 package org.team401.robot2020.control.robot
 
 import org.snakeskin.measure.Inches
+import org.snakeskin.measure.RadiansPerSecond
 import org.snakeskin.measure.Seconds
 import org.snakeskin.measure.distance.angular.AngularDistanceMeasureRadians
 import org.snakeskin.measure.time.TimeMeasureSeconds
@@ -19,28 +20,36 @@ import kotlin.math.hypot
 
 object RobotState: DifferentialDriveState(100, DrivetrainSubsystem.model.driveKinematicsModel) {
     private val vehicleToTurret = InterpolatingTreeMap<InterpolatingDouble, Pose2d>(observationBufferSize)
+    private val cameraToVisionTargetTranslations = arrayListOf<Translation2d?>()
+
+    /**
+     * The velocity of the turret.  This is used to predict future turret positions.
+     */
     var turretVelocityPredicted = Twist2d.identity()
         @Synchronized get
         private set
 
-    private val cameraToGoal = InterpolatingTreeMap<InterpolatingDouble, Pose2d>(observationBufferSize)
+    private var lastTargetingParameters: ShooterTargetingParameters? = null
 
-    //private val visionTarget = GoalTracker()
+    /**
+     * The latest field to target reference.
+     */
+    var fieldToTargetLock = FieldToTargetLock(0.0.Seconds, Pose2d.identity())
+        @Synchronized get
+        private set
 
-    var lastSeenFieldToTarget = Pose2d.identity()
-
-    private val cameraToVisionTargetTranslations = arrayListOf<Translation2d?>()
-
-    init {
-        cameraToGoal[InterpolatingDouble(0.0)] = Pose2d.identity()
+    /**
+     * Manually observes a new field to target reference.  Useful in auto to override the lock with a known location.
+     */
+    @Synchronized fun observeFieldToTarget(timestamp: TimeMeasureSeconds, fieldToTarget: Pose2d) {
+        fieldToTargetLock = FieldToTargetLock(timestamp, fieldToTarget)
     }
 
-    @Synchronized fun resetVision() {
-        //visionTarget.reset()
-    }
-
+    /**
+     * Adds an observation from the turret, which consists of the time, turet angle, and turret velocity.
+     */
     @Synchronized fun addTurretObservation(timestamp: TimeMeasureSeconds, turretAngle: AngularDistanceMeasureRadians, turretVelocity: AngularVelocityMeasureRadiansPerSecond) {
-        val rotation = Rotation2d.fromRadians((turretAngle - ShooterConstants.turretZeroOffset).value)
+        val rotation = Rotation2d.fromRadians(turretAngle.value)
         vehicleToTurret[InterpolatingDouble(timestamp.value)] = Pose2d(ShooterConstants.robotToTurret, rotation)
         turretVelocityPredicted = Twist2d(0.0, 0.0, turretVelocity.value)
     }
@@ -63,10 +72,12 @@ object RobotState: DifferentialDriveState(100, DrivetrainSubsystem.model.driveKi
     }
 
     private fun updateGoalTracker(timestamp: TimeMeasureSeconds, source: LimelightCamera) {
+        //Ensure two proper corners
         if (cameraToVisionTargetTranslations.size != 2 ||
                 cameraToVisionTargetTranslations[0] == null ||
                 cameraToVisionTargetTranslations[1] == null) return
 
+        //Interpolate center of the goal
         val cameraToVisionTarget = Pose2d.fromTranslation(
             cameraToVisionTargetTranslations[0]!!.interpolate(
                 cameraToVisionTargetTranslations[1]!!, 0.5
@@ -77,17 +88,17 @@ object RobotState: DifferentialDriveState(100, DrivetrainSubsystem.model.driveKi
             .transformBy(source.originToLens) //Turret -> Camera
             .transformBy(cameraToVisionTarget) //Camera -> Target
 
-        lastSeenFieldToTarget = Pose2d(fieldToVisionTarget.translation, Rotation2d.identity())
-
-        //visionTarget.update(timestamp.value, listOf(Pose2d(fieldToVisionTarget.translation, Rotation2d.identity())))
+        fieldToTargetLock = FieldToTargetLock(timestamp, Pose2d(fieldToVisionTarget.translation, Rotation2d.identity()))
     }
 
+    /**
+     * Adds an update from a vision camera.
+     */
     @Synchronized fun addVisionUpdate(timestamp: TimeMeasureSeconds, observations: List<TargetInfo>?, source: LimelightCamera) {
         cameraToVisionTargetTranslations.clear()
 
         //Empty update case
         if (observations == null || observations.isEmpty()) {
-            //visionTarget.update(timestamp.value, arrayListOf())
             return
         }
 
@@ -99,63 +110,112 @@ object RobotState: DifferentialDriveState(100, DrivetrainSubsystem.model.driveKi
         updateGoalTracker(timestamp, source)
     }
 
-    @Synchronized fun addCameraObservation(angleToGoal: Rotation2d, distanceToGoal: Double, time: TimeMeasureSeconds) {
-        cameraToGoal[InterpolatingDouble(time.value)] = Pose2d(distanceToGoal, 0.0, angleToGoal)
-    }
-
+    /**
+     * Returns the 2d transform from the vehicle to the turret.
+     * The translation is a physical constant, the rotation is measured by the encoder
+     */
     @Synchronized fun getVehicleToTurret(timestamp: TimeMeasureSeconds): Pose2d {
         return vehicleToTurret.getInterpolated(InterpolatingDouble(timestamp.value))
     }
 
+    /**
+     * Gets the pose of the turret on the field at the given timestamp
+     */
     @Synchronized fun getFieldToTurret(timestamp: TimeMeasureSeconds): Pose2d {
         return getFieldToVehicle(timestamp).transformBy(getVehicleToTurret(timestamp))
     }
 
+    /**
+     * Gets the latest timestamp and pose of the turret relative to the vehicle
+     */
     @Synchronized fun getLatestVehicleToTurret(): Map.Entry<InterpolatingDouble, Pose2d> {
         return vehicleToTurret.lastEntry()
     }
 
+    /**
+     * Gets the latest pose of the turret relative to the field
+     */
     @Synchronized fun getLatestFieldToTurret(): Pose2d {
         return getLatestFieldToVehicle().value.transformBy(getLatestVehicleToTurret().value)
     }
 
+    /**
+     * Predicts the position of the turret relative to the vehicle at the given number of seconds ahead of the latest observation
+     */
     @Synchronized fun getPredictedVehicleToTurret(lookaheadTime: TimeMeasureSeconds): Pose2d {
         return getLatestVehicleToTurret().value
             .transformBy(Pose2d.exp(turretVelocityPredicted.scaled(lookaheadTime.value)))
     }
 
+    /**
+     * Predicts the position of the turret relative to the field at the given number of seconds ahead of the latest observation
+     */
     @Synchronized fun getPredictedFieldToTurret(lookaheadTime: TimeMeasureSeconds): Pose2d {
         return getPredictedFieldToVehicle(lookaheadTime)
             .transformBy(getPredictedVehicleToTurret(lookaheadTime))
     }
 
+    /**
+     * Gets the latest pose of the vision target relative to the field
+     */
     @Synchronized fun getFieldToVisionTarget(): Pose2d? {
-        return Pose2d(lastSeenFieldToTarget.translation, Rotation2d.identity()) //We know the target is at 0 degrees
+        return Pose2d(fieldToTargetLock.fieldToTarget.translation, Rotation2d.identity()) //We know the target is at 0 degrees
     }
 
+    /**
+     * Gets the transform from the vehicle to the vision target at the given timestamp
+     */
     @Synchronized fun getVehicleToVisionTarget(timestamp: TimeMeasureSeconds): Pose2d? {
         val fieldToVisionTarget = getFieldToVisionTarget() ?: return null
 
         return getFieldToVehicle(timestamp).inverse().transformBy(fieldToVisionTarget)
     }
 
-    @Synchronized fun getAimingParameters(timestamp: TimeMeasureSeconds, prevTrackId: Int, maxTrackAge: Double): AimingParameters? {
+    /**
+     * Gets targeting parameters for the shooter at the given timestamp and lookahead prediction time.
+     * Additionally caches the calculated parameters so that future calls with the same timestamp will not
+     * need to recalculate the parameters.
+     */
+    @Synchronized fun getTargetingParameters(timestamp: TimeMeasureSeconds, lookaheadTime: TimeMeasureSeconds): ShooterTargetingParameters {
+        if (lastTargetingParameters?.timestamp == timestamp) return lastTargetingParameters!! //Use cached to avoid recalculating
+
         val vehicleToGoal = getFieldToVehicle(timestamp)
             .inverse()
-            .transformBy(lastSeenFieldToTarget)
+            .transformBy(fieldToTargetLock.fieldToTarget)
 
         val turretToGoal = getFieldToTurret(timestamp)
             .inverse() // Turret -> Field
-            .transformBy(lastSeenFieldToTarget) // Turret -> Target
+            .transformBy(fieldToTargetLock.fieldToTarget) // Turret -> Target
 
-        return AimingParameters(
-            vehicleToGoal,
-            turretToGoal,
-            lastSeenFieldToTarget,
-            lastSeenFieldToTarget.rotation,
-            timestamp.value,
-            0.0,
-            0
-        )
+        val vehicleToGoalRotation = vehicleToGoal.translation.direction() //Rotation of vehicle to goal is always direction of vector translation
+
+        val vehicleToTurretNow = getVehicleToTurret(timestamp)
+
+        val fieldToTurret = getFieldToTurret(timestamp)
+        val fieldToPredictedTurret = getPredictedFieldToTurret(lookaheadTime)
+
+        val turretToPredictedTurret = fieldToTurret
+            .inverse() // turret -> field
+            .transformBy(fieldToPredictedTurret) // turret -> predicted turret
+
+        val predictedTurretToGoal = turretToPredictedTurret
+            .inverse() // Predicted turret -> turret
+            .transformBy(turretToGoal) // Predicted turret -> goal
+
+        val correctedRangeToTarget = predictedTurretToGoal.translation.norm().Inches //Predicted range of the turret to the goal
+
+        val turretError = vehicleToTurretNow.rotation //Relative rotation the turret must perform to align with the goal
+            .inverse()
+            .rotateBy(vehicleToGoalRotation)
+
+        val vehicleRange = vehicleToGoal.translation.norm()
+        val vehicleVelocity = vehicleVelocityMeasured
+        val feedVelocity = (-1.0 * //Invert direction to have turret oppose robot motion
+                ((vehicleToGoalRotation.sin() * vehicleVelocity.dx / vehicleRange) //Handle tangential movement of the robot around the goal
+                        + vehicleVelocity.dtheta)).RadiansPerSecond //Handle rotational velocity of the robot
+
+        val params = ShooterTargetingParameters(timestamp, turretError, feedVelocity, correctedRangeToTarget)
+        lastTargetingParameters = params //Cache this value for future calls to avoid recalculating
+        return params
     }
 }

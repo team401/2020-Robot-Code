@@ -113,7 +113,7 @@ object ClimbingSubsystem : Subsystem() {
         val feedbackVolts = leftElevatorController.calculate(leftElevator.gearbox.getAngularPosition().toRadians().value, angularTarget.value)
         val ffVolts = leftElevatorModel.calculate(
             leftElevatorController.setpoint.velocity,
-            leftElevatorController.getAcceleration(elevatorConstraints, lastLeftElevatorSetpoint)
+            0.0//leftElevatorController.getAcceleration(elevatorConstraints, lastLeftElevatorSetpoint)
         )
         lastLeftElevatorSetpoint = leftElevatorController.setpoint
 
@@ -129,7 +129,7 @@ object ClimbingSubsystem : Subsystem() {
         val feedbackVolts = rightElevatorController.calculate(rightElevator.gearbox.getAngularPosition().toRadians().value, angularTarget.value)
         val ffVolts = rightElevatorModel.calculate(
             rightElevatorController.setpoint.velocity,
-            rightElevatorController.getAcceleration(elevatorConstraints, lastRightElevatorSetpoint)
+            0.0//rightElevatorController.getAcceleration(elevatorConstraints, lastRightElevatorSetpoint)
         )
         lastRightElevatorSetpoint = rightElevatorController.setpoint
 

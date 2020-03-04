@@ -7,10 +7,8 @@ import org.snakeskin.logic.Direction
 import org.snakeskin.measure.Degrees
 import org.snakeskin.measure.Inches
 import org.snakeskin.measure.Radians
-import org.team401.robot2020.control.robot.SuperstructureManager
 import org.team401.robot2020.control.robot.SuperstructureRoutines
-import org.team401.robot2020.control.robot.TurretLimelight
-import org.team401.robot2020.subsystems.BallSubsystem
+import org.team401.robot2020.control.robot.VisionManager
 import org.team401.robot2020.subsystems.ClimbingSubsystem
 import org.team401.robot2020.subsystems.ShooterSubsystem
 
@@ -25,13 +23,11 @@ object HumanControllers {
 
         whenButton(Buttons.StickBottom) {
             pressed {
-                ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.Seeking)
-                TurretLimelight.ledOn()
+                ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FieldRelativeTarget)
             }
 
             released {
                 ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.LockToZero)
-                TurretLimelight.ledOff()
             }
         }
     }
@@ -66,15 +62,11 @@ object HumanControllers {
     val gamePad = HumanControls.f310(2) {
         whenAxis(Axes.RightTrigger) {
             crosses(0.5) {
-                SuperstructureManager.activeControlMode = SuperstructureManager.TurretAngleMode.Vision
-                visionEnabled = true
                 SuperstructureRoutines.prepareForShooting()
-                SuperstructureRoutines.fireShooter()
             }
 
             returns(0.5) {
                 SuperstructureRoutines.stopShooting()
-                visionEnabled = false
             }
         }
 

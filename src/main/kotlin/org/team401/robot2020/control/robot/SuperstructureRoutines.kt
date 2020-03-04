@@ -30,10 +30,10 @@ object SuperstructureRoutines {
     }
 
     @Synchronized fun prepareForShooting() {
+        VisionManager.turretVisionNearTargeting()
         ShooterSubsystem.flywheelMachine.setState(ShooterSubsystem.FlywheelStates.PreSpin)
-        ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FollowingTarget)
+        ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FieldRelativeTarget)
         ShooterSubsystem.kickerMachine.setState(ShooterSubsystem.KickerStates.Kick)
-        TurretLimelight.ledOn()
     }
 
     @Synchronized fun fireShooter() {
@@ -44,11 +44,11 @@ object SuperstructureRoutines {
     }
 
     @Synchronized fun stopShooting() {
+        VisionManager.turretVisionOff()
         ShooterSubsystem.flywheelMachine.disable()
         ShooterSubsystem.kickerMachine.disable()
         ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.LockToZero)
         BallSubsystem.towerMachine.setState(BallSubsystem.TowerStates.Waiting)
         BallSubsystem.flyingVMachine.disable()
-        TurretLimelight.ledOff()
     }
 }
