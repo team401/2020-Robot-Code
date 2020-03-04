@@ -74,6 +74,8 @@ object ShooterConstants {
     val turretPositiveLimit = 1.0.Revolutions.toRadians() + 20.0.Degrees.toRadians()
     val turretRapidError = 20.0.Degrees.toRadians()
 
+    val turretJogRate = 0.25.RevolutionsPerSecond.toRadiansPerSecond()
+
     val turretTrackingLookahead = 0.7.Seconds
 
     val turretRatio = 190.0 / 18.0 // Total reduction from gearbox shaft to turret axis
@@ -92,11 +94,13 @@ object ShooterConstants {
     //Profiled acceleration ramp of the flywheel
     val flywheelRampAcceleration = (8000.0.RevolutionsPerMinute / 2.0.Seconds).toRadiansPerSecondPerSecond()
 
-    //Default speed for the flywheel to spin at
-    val flywheelDefaultSpeed = (00.0.RevolutionsPerMinute).toRadiansPerSecond()
+    val flywheelNearConstantCorrection = 0.0.RevolutionsPerMinute.toRadiansPerSecond()
+    val flywheelFarConstantCorrection = 0.0.RevolutionsPerMinute.toRadiansPerSecond()
+    val flywheelFarShotSpeed = (9500.0.RevolutionsPerMinute).toRadiansPerSecond()
+    val flywheelMinimumSpeed = (1000.0.RevolutionsPerMinute).toRadiansPerSecond() //Min speed to allow manual adjustment to reach
 
     //Rate to bump the flywheel speed up or down by
-    val flywheelBump = 10.0.RevolutionsPerSecond.toRadiansPerSecond()
+    val flywheelBump = 50.0.RevolutionsPerMinute.toRadiansPerSecond()
 
     //LUT and regression
     val flywheelLUT = arrayOf(

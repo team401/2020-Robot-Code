@@ -24,12 +24,16 @@ class VelocityProfiler(private val acceleration: AngularAccelerationMeasureRadia
     var accelerationCommand = 0.0.RadiansPerSecondPerSecond
         private set
 
+    var goal = 0.0.RadiansPerSecond
+        private set
+
     /**
      * Resets the velocity command to the given value, and zeroes the acceleration
      */
     fun reset(currentSpeed: AngularVelocityMeasureRadiansPerSecond = 0.0.RadiansPerSecond) {
         velocityCommand = currentSpeed
         accelerationCommand = 0.0.RadiansPerSecondPerSecond
+        goal = 0.0.RadiansPerSecond
     }
 
     /**
@@ -37,6 +41,8 @@ class VelocityProfiler(private val acceleration: AngularAccelerationMeasureRadia
      */
     fun calculate(dt: TimeMeasureSeconds, goalVelocity: AngularVelocityMeasureRadiansPerSecond) {
         val dv = dt * acceleration
+
+        goal = goalVelocity
 
         if (goalVelocity > velocityCommand) { //Goal is above current command, accelerate positively
             velocityCommand += dv

@@ -10,6 +10,34 @@ import org.team401.robot2020.subsystems.ShooterSubsystem
  * correct state
  */
 object SuperstructureRoutines {
+    @Synchronized fun unwindShooter() {
+        ShooterSubsystem.flywheelMachine.disable()
+        ShooterSubsystem.kickerMachine.disable()
+        ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.LockToZero)
+        ShooterSubsystem.setHoodState(false)
+    }
+
+    @Synchronized fun lockNearShot() {
+        ShooterSubsystem.flywheelMachine.setState(ShooterSubsystem.FlywheelStates.NearShotSpinUp)
+        ShooterSubsystem.kickerMachine.setState(ShooterSubsystem.KickerStates.Kick)
+        ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FieldRelativeTarget)
+        ShooterSubsystem.setHoodState(false)
+        VisionManager.turretVisionNearTargeting()
+    }
+
+    @Synchronized fun lockFarShot() {
+        ShooterSubsystem.flywheelMachine.setState(ShooterSubsystem.FlywheelStates.FarShotSpinUp)
+        ShooterSubsystem.kickerMachine.setState(ShooterSubsystem.KickerStates.Kick)
+        ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FieldRelativeTarget)
+        ShooterSubsystem.setHoodState(true)
+        VisionManager.turretVisionFarTargeting()
+    }
+
+    @Synchronized fun startFiring() {
+
+    }
+
+
     @Synchronized fun startIntaking() {
         BallSubsystem.intakeMachine.setState(BallSubsystem.IntakeStates.Intake)
         BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Intaking)
@@ -31,7 +59,7 @@ object SuperstructureRoutines {
 
     @Synchronized fun prepareForShooting() {
         VisionManager.turretVisionNearTargeting()
-        ShooterSubsystem.flywheelMachine.setState(ShooterSubsystem.FlywheelStates.PreSpin)
+        //ShooterSubsystem.flywheelMachine.setState(ShooterSubsystem.FlywheelStates.PreSpin)
         ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FieldRelativeTarget)
         ShooterSubsystem.kickerMachine.setState(ShooterSubsystem.KickerStates.Kick)
     }

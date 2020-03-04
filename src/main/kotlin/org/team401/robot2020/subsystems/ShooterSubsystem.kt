@@ -3,7 +3,6 @@ package org.team401.robot2020.subsystems
 import com.ctre.phoenix.motorcontrol.*
 import com.revrobotics.CANSparkMax
 import edu.wpi.first.wpilibj.controller.SimpleMotorFeedforward
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 import org.snakeskin.component.CTREFeedforwardScalingMode
 import org.snakeskin.component.Gearbox
 import org.snakeskin.component.SmartGearbox
@@ -16,6 +15,7 @@ import org.snakeskin.measure.*
 import org.snakeskin.measure.distance.angular.AngularDistanceMeasureRadians
 import org.snakeskin.measure.time.TimeMeasureSeconds
 import org.snakeskin.measure.velocity.angular.AngularVelocityMeasureRadiansPerSecond
+import org.team401.robot2020.HumanControllers
 import org.team401.robot2020.config.CANDevices
 import org.team401.robot2020.config.DIOChannels
 import org.team401.robot2020.config.constants.RobotConstants
@@ -28,18 +28,18 @@ import org.team401.taxis.geometry.Rotation2d
 
 object ShooterSubsystem: Subsystem() {
     //<editor-fold desc="Hardware Devices">
-    private val shooterMotorA = Hardware.createTalonFX(
+    private val flywheelMotorA = Hardware.createTalonFX(
         CANDevices.shooterMotorA.canID,
         ffMode = CTREFeedforwardScalingMode.Scale12V,
         mockProducer = NullTalonFxDevice.producer
     )
 
-    private val shooterMotorB = Hardware.createTalonFX(
+    private val flywheelMotorB = Hardware.createTalonFX(
         CANDevices.shooterMotorB.canID,
         mockProducer = NullTalonFxDevice.producer
     )
 
-    private val shooterGearbox = SmartGearbox(shooterMotorA, shooterMotorB, ratioToSensor = ShooterConstants.flywheelRatio)
+    private val flywheelGearbox = SmartGearbox(flywheelMotorA, flywheelMotorB, ratioToSensor = ShooterConstants.flywheelRatio)
 
     private val kickerMotor = Hardware.createBrushlessSparkMax(
         CANDevices.kickerMotor.canID,
@@ -62,6 +62,8 @@ object ShooterSubsystem: Subsystem() {
     )
 
     private val turretRotationGearbox = Gearbox(turretEncoder, turretRotationMotor, ratioToSensor = ShooterConstants.turretRatio)
+
+    private val hoodPiston = Hardware.createPneumaticChannel(0)
     //</editor-fold>
 
     //<editor-fold desc="Models and Controllers">
@@ -91,7 +93,7 @@ object ShooterSubsystem: Subsystem() {
     )
 
     val turretCharacterizationRoutine = CharacterizationRoutine(turretRotationGearbox, turretRotationGearbox)
-    val flywheelCharacterizationRoutine = CharacterizationRoutine(shooterGearbox, shooterGearbox)
+    val flywheelCharacterizationRoutine = CharacterizationRoutine(flywheelGearbox, flywheelGearbox)
     //</editor-fold>
 
     fun getTurretAngle(): AngularDistanceMeasureRadians {
@@ -103,7 +105,7 @@ object ShooterSubsystem: Subsystem() {
     }
 
     fun getFlywheelVelocity(): AngularVelocityMeasureRadiansPerSecond {
-        return shooterGearbox.getAngularVelocity()
+        return flywheelGearbox.getAngularVelocity()
     }
 
     fun isTurretInRapid(): Boolean {
@@ -111,7 +113,41 @@ object ShooterSubsystem: Subsystem() {
     }
 
     fun isShotReady(): Boolean {
-        return true//shooterGearbox.getAngularVelocity().toRevolutionsPerMinute() > flywheelProfiler.velocityCommand.toRevolutionsPerMinute() - 20.0.RevolutionsPerMinute
+        return flywheelProfiler.goal > 0.0.RadiansPerSecond && flywheelGearbox.getAngularVelocity().toRevolutionsPerMinute() > flywheelProfiler.goal.toRevolutionsPerMinute() - 20.0.RevolutionsPerMinute
+    }
+
+    fun setHoodState(farShot: Boolean) {
+        hoodPiston.setState(farShot)
+    }
+
+    private var flywheelAdjustmentNear = 0.0.RadiansPerSecond
+        @Synchronized get
+
+    private var flywheelAdjustmentFar = 0.0.RadiansPerSecond
+        @Synchronized get
+
+    @Synchronized fun adjustFlywheelUp() {
+        when (flywheelMachine.getState()) {
+            FlywheelStates.NearShotSpinUp -> flywheelAdjustmentNear += ShooterConstants.flywheelBump
+            FlywheelStates.FarShotSpinUp -> flywheelAdjustmentFar += ShooterConstants.flywheelBump
+        }
+    }
+
+    @Synchronized fun adjustFlywheelDown() {
+        when (flywheelMachine.getState()) {
+            FlywheelStates.NearShotSpinUp -> flywheelAdjustmentNear -= ShooterConstants.flywheelBump
+            FlywheelStates.FarShotSpinUp -> flywheelAdjustmentFar -= ShooterConstants.flywheelBump
+        }
+    }
+
+    private fun updateFlywheel(dt: TimeMeasureSeconds, velocity: AngularVelocityMeasureRadiansPerSecond) {
+        flywheelProfiler.calculate(dt, velocity)
+        val ffVolts = flywheelModel.calculate(
+            flywheelProfiler.velocityCommand.value,
+            flywheelProfiler.accelerationCommand.value
+        )
+
+        flywheelGearbox.setAngularVelocitySetpoint(flywheelProfiler.velocityCommand, ffVolts)
     }
 
     enum class TurretStates {
@@ -125,95 +161,57 @@ object ShooterSubsystem: Subsystem() {
     }
 
     enum class FlywheelStates {
-        PreSpin, //Flywheel is spun up to the initial velocity
-        CoordinatedControl, //Flywheel is following instructions from the RobotState
-        Manual //Flywheel has been taken control of manually and is following user input
+        NearShotSpinUp, //Spins up to the near shot speed based on the targeting info
+        FarShotSpinUp, //Spins up to the far shot speed based on the targeting info
+        HoldSetpoint, //Holds the present setpoint.  Must be entered from a spin-up state
+        Manual //Flywheel is under manual, OPEN LOOP control
     }
 
     enum class KickerStates {
         Kick
     }
 
-    private var flywheelManualSpeed = 0.0.RadiansPerSecond
-    @Synchronized get
-
-    /**
-     * Bumps up the speed of the flywheel.  Only has an effect in manual mode.
-     */
-    @Synchronized fun flywheelBumpUp() {
-        flywheelManualSpeed += ShooterConstants.flywheelBump
-        if (flywheelManualSpeed > ShooterConstants.flywheelMaxVelocity) {
-            flywheelManualSpeed = ShooterConstants.flywheelMaxVelocity
-        }
-    }
-
-    /**
-     * Bumps down the speed of the flywheel.  Only has an effect in manual mode.
-     */
-    @Synchronized fun flywheelBumpDown() {
-        flywheelManualSpeed -= ShooterConstants.flywheelBump
-        if (flywheelManualSpeed < 0.0.RadiansPerSecond) {
-            flywheelManualSpeed = 0.0.RadiansPerSecond
-        }
-    }
-
-    private fun updateFlywheel(dt: TimeMeasureSeconds, velocity: AngularVelocityMeasureRadiansPerSecond) {
-        flywheelProfiler.calculate(dt, velocity)
-        val ffVolts = flywheelModel.calculate(
-            flywheelProfiler.velocityCommand.value,
-            flywheelProfiler.accelerationCommand.value
-        )
-
-        shooterGearbox.setAngularVelocitySetpoint(flywheelProfiler.velocityCommand, ffVolts)
-    }
-
     val flywheelMachine: StateMachine<FlywheelStates> = stateMachine {
-        state(FlywheelStates.PreSpin) {
-            lateinit var session: LoggerSession
-
-            entry {
-                //session = LoggerSession("10.4.1.162", 5801)
-                flywheelProfiler.reset(shooterGearbox.getAngularVelocity().toRadiansPerSecond())
-            }
+        state(FlywheelStates.NearShotSpinUp) {
+            entry { flywheelProfiler.reset(flywheelGearbox.getAngularVelocity()) }
 
             rtAction { timestamp, dt ->
-                //updateFlywheel(dt, ShooterConstants.flywheelRegression.predict(SuperstructureManager.distanceFromTarget.value).RevolutionsPerMinute.toRadiansPerSecond())
-                //updateFlywheel(dt, SmartDashboard.getNumber("flywheel_rpm", 0.0).RevolutionsPerMinute.toRadiansPerSecond())
-                //session["Timestamp (s)"] = timestamp.value
-                //session["Velocity Command (RPM)"] = flywheelProfiler.velocityCommand.toRevolutionsPerMinute().value
-                //session["Velocity (RPM)"] = shooterGearbox.getAngularVelocity().toRevolutionsPerMinute().value
-                //session.publish()
-            }
+                val targetingParameters = RobotState.getTargetingParameters(timestamp, ShooterConstants.turretTrackingLookahead)
+                val shotVelocity = (ShooterConstants.flywheelRegression
+                    .predict(targetingParameters.rangeToTarget.value).RadiansPerSecond + flywheelAdjustmentNear + ShooterConstants.flywheelNearConstantCorrection)
+                    .coerceAtLeast(ShooterConstants.flywheelMinimumSpeed) //If adjustment is too low, enforce min speed
 
-            exit {
-                //session.end()
+                updateFlywheel(dt, shotVelocity)
             }
         }
 
-        state(FlywheelStates.CoordinatedControl) {
+        state(FlywheelStates.FarShotSpinUp) {
+            entry { flywheelProfiler.reset(flywheelGearbox.getAngularVelocity()) }
+            
+            rtAction { _, dt ->
+                val shotVelocity = (ShooterConstants.flywheelFarShotSpeed + flywheelAdjustmentFar + ShooterConstants.flywheelFarConstantCorrection)
+                    .coerceAtLeast(ShooterConstants.flywheelMinimumSpeed)
+
+                updateFlywheel(dt, shotVelocity)
+            }
+        }
+
+        state(FlywheelStates.HoldSetpoint) {
+            var velocity = ShooterConstants.flywheelMinimumSpeed
+            rejectIf { !isInState(FlywheelStates.NearShotSpinUp) && !isInState(FlywheelStates.FarShotSpinUp) }
+
             entry {
-                flywheelProfiler.reset(shooterGearbox.getAngularVelocity().toRadiansPerSecond())
+                velocity = flywheelProfiler.goal
             }
 
-            rtAction { timestamp, dt ->
+            rtAction { _, dt ->
+                updateFlywheel(dt, velocity)
             }
         }
 
         state(FlywheelStates.Manual) {
-            entry {
-                val currentVelocity = shooterGearbox.getAngularVelocity().toRadiansPerSecond()
-                flywheelProfiler.reset(currentVelocity)
-                flywheelManualSpeed = currentVelocity
-            }
-
-            rtAction { timestamp, dt ->
-                updateFlywheel(dt, flywheelManualSpeed)
-            }
-        }
-
-        disabled {
-            entry {
-                shooterGearbox.stop()
+            action {
+                flywheelGearbox.setPercentOutput(HumanControllers.manualShotPowerChannel.read())
             }
         }
     }
@@ -263,13 +261,25 @@ object ShooterSubsystem: Subsystem() {
             }
         }
 
+        state(TurretStates.Jogging) {
+            entry { turretController.enterJog() }
+
+            rtAction { _, dt ->
+                val jogRate = HumanControllers.turretJogChannel.read()._ul * ShooterConstants.turretJogRate
+                turretController.updateJog(jogRate, dt)
+            }
+        }
+
         disabled {
-            entry { turretRotationGearbox.stop() }
+            entry {
+                flywheelProfiler.reset(0.0.RadiansPerSecond)
+                turretRotationGearbox.stop()
+            }
         }
     }
 
     override fun setup() {
-        useHardware(shooterMotorA) {
+        useHardware(flywheelMotorA) {
             inverted = false
             setNeutralMode(NeutralMode.Coast)
             configOpenloopRamp(0.0)
@@ -286,7 +296,7 @@ object ShooterSubsystem: Subsystem() {
             configVoltageCompSaturation(12.0)
         }
 
-        useHardware(shooterMotorB) {
+        useHardware(flywheelMotorB) {
             setInverted(InvertType.OpposeMaster)
             setNeutralMode(NeutralMode.Coast)
             setStatusFramePeriod(StatusFrame.Status_1_General, Int.MAX_VALUE)
@@ -307,8 +317,13 @@ object ShooterSubsystem: Subsystem() {
 
         on (Events.ENABLED) {
             turretMachine.setState(TurretStates.Hold)
+            setHoodState(false)
         }
 
-        SmartDashboard.putNumber("flywheel_rpm", 0.0)
+        on (Events.DISABLED) {
+            //Print out flywheel adjustments on disabled for logging purposes.
+            println("FLYWHEEL NEAR ADJUST: ${flywheelAdjustmentNear.toRevolutionsPerMinute()}")
+            println("FLYWHEEL FAR ADJUST: ${flywheelAdjustmentFar.toRevolutionsPerMinute()}")
+        }
     }
 }

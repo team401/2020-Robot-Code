@@ -16,6 +16,8 @@ object HumanControllers {
     val driveTranslationChannel = AxisChannel()
     val driveRotationChannel = AxisChannel()
     val driveQuickTurnChannel = ButtonChannel()
+    val turretJogChannel = AxisChannel()
+    val manualShotPowerChannel = AxisChannel()
 
     val leftStick = HumanControls.t16000m(0) {
         invertAxis(Axes.Pitch)
@@ -60,6 +62,9 @@ object HumanControllers {
     }
 
     val gamePad = HumanControls.f310(2) {
+        bindAxis(Axes.RightX, turretJogChannel)
+        bindAxis(Axes.LeftTrigger, manualShotPowerChannel)
+
         whenAxis(Axes.RightTrigger) {
             crosses(0.5) {
                 SuperstructureRoutines.prepareForShooting()
