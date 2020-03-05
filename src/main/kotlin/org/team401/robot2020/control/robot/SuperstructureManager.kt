@@ -9,8 +9,18 @@ import org.team401.robot2020.subsystems.ShooterSubsystem
  * and shooter.  Effectively acts as supervisory logic to ensure that all of the systems mentioned are in the
  * correct state
  */
-object SuperstructureRoutines {
+object SuperstructureManager {
+    private var isLocked = false
+    private var isShooting = false
+
+    @Synchronized fun reset() {
+        isLocked = false
+        isShooting = false
+    }
+
     @Synchronized fun unwindShooter() {
+        isLocked = false
+        isShooting = false
         ShooterSubsystem.flywheelMachine.disable()
         ShooterSubsystem.kickerMachine.disable()
         ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.LockToZero)
@@ -18,6 +28,8 @@ object SuperstructureRoutines {
     }
 
     @Synchronized fun lockNearShot() {
+        isLocked = true
+        isShooting = false
         ShooterSubsystem.flywheelMachine.setState(ShooterSubsystem.FlywheelStates.NearShotSpinUp)
         ShooterSubsystem.kickerMachine.setState(ShooterSubsystem.KickerStates.Kick)
         ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FieldRelativeTarget)
@@ -26,6 +38,8 @@ object SuperstructureRoutines {
     }
 
     @Synchronized fun lockFarShot() {
+        isLocked = true
+        isShooting = false
         ShooterSubsystem.flywheelMachine.setState(ShooterSubsystem.FlywheelStates.FarShotSpinUp)
         ShooterSubsystem.kickerMachine.setState(ShooterSubsystem.KickerStates.Kick)
         ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FieldRelativeTarget)
@@ -34,9 +48,24 @@ object SuperstructureRoutines {
     }
 
     @Synchronized fun startFiring() {
-
+        if (isLocked) {
+            ShooterSubsystem.flywheelMachine.setState(ShooterSubsystem.FlywheelStates.HoldSetpoint)
+            ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.Hold)
+            BallSubsystem.towerMachine.setState(BallSubsystem.TowerStates.Shooting)
+            BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Shooting)
+            isShooting = true
+        }
     }
 
+    @Synchronized fun stopFiring() {
+        if (isShooting) {
+            ShooterSubsystem.flywheelMachine.back() //Back to appropriate spin up state
+            ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FieldRelativeTarget)
+            BallSubsystem.towerMachine.setState(BallSubsystem.TowerStates.Waiting)
+            BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Idle)
+            isShooting = false
+        }
+    }
 
     @Synchronized fun startIntaking() {
         BallSubsystem.intakeMachine.setState(BallSubsystem.IntakeStates.Intake)
@@ -44,7 +73,7 @@ object SuperstructureRoutines {
     }
 
     @Synchronized fun stopIntaking() {
-        BallSubsystem.intakeMachine.setState(BallSubsystem.IntakeStates.GoToStow)
+        BallSubsystem.intakeMachine.setState(BallSubsystem.IntakeStates.Stowed)
         BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Idle)
     }
 
@@ -55,28 +84,5 @@ object SuperstructureRoutines {
         BallSubsystem.intakeMachine.setState(BallSubsystem.IntakeStates.Stowed)
         BallSubsystem.flyingVMachine.disable()
         BallSubsystem.towerMachine.disable()
-    }
-
-    @Synchronized fun prepareForShooting() {
-        VisionManager.turretVisionNearTargeting()
-        //ShooterSubsystem.flywheelMachine.setState(ShooterSubsystem.FlywheelStates.PreSpin)
-        ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FieldRelativeTarget)
-        ShooterSubsystem.kickerMachine.setState(ShooterSubsystem.KickerStates.Kick)
-    }
-
-    @Synchronized fun fireShooter() {
-        ShooterSubsystem.kickerMachine.setState(ShooterSubsystem.KickerStates.Kick)
-        ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.Hold)
-        BallSubsystem.towerMachine.setState(BallSubsystem.TowerStates.Shooting)
-        BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Shooting)
-    }
-
-    @Synchronized fun stopShooting() {
-        VisionManager.turretVisionOff()
-        ShooterSubsystem.flywheelMachine.disable()
-        ShooterSubsystem.kickerMachine.disable()
-        ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.LockToZero)
-        BallSubsystem.towerMachine.setState(BallSubsystem.TowerStates.Waiting)
-        BallSubsystem.flyingVMachine.disable()
     }
 }

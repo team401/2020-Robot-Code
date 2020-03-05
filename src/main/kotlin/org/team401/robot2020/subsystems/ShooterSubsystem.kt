@@ -140,6 +140,11 @@ object ShooterSubsystem: Subsystem() {
         }
     }
 
+    @Synchronized fun resetFlywheelAdjust() {
+        flywheelAdjustmentNear = 0.0.RadiansPerSecond
+        flywheelAdjustmentFar = 0.0.RadiansPerSecond
+    }
+
     private fun updateFlywheel(dt: TimeMeasureSeconds, velocity: AngularVelocityMeasureRadiansPerSecond) {
         flywheelProfiler.calculate(dt, velocity)
         val ffVolts = flywheelModel.calculate(

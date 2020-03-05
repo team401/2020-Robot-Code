@@ -4,11 +4,7 @@ import org.snakeskin.dsl.*
 import org.snakeskin.hid.channel.AxisChannel
 import org.snakeskin.hid.channel.ButtonChannel
 import org.snakeskin.logic.Direction
-import org.snakeskin.measure.Degrees
-import org.snakeskin.measure.Inches
-import org.snakeskin.measure.Radians
-import org.team401.robot2020.control.robot.SuperstructureRoutines
-import org.team401.robot2020.control.robot.VisionManager
+import org.team401.robot2020.control.robot.SuperstructureManager
 import org.team401.robot2020.subsystems.ClimbingSubsystem
 import org.team401.robot2020.subsystems.ShooterSubsystem
 
@@ -22,16 +18,6 @@ object HumanControllers {
     val leftStick = HumanControls.t16000m(0) {
         invertAxis(Axes.Pitch)
         bindAxis(Axes.Pitch, driveTranslationChannel)
-
-        whenButton(Buttons.StickBottom) {
-            pressed {
-                ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FieldRelativeTarget)
-            }
-
-            released {
-                ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.LockToZero)
-            }
-        }
     }
 
     val rightStick = HumanControls.t16000m(1) {
@@ -41,7 +27,7 @@ object HumanControllers {
         //<editor-fold desc="Climbing Controls">
         whenButton(Buttons.StickLeft) {
             pressed {
-                SuperstructureRoutines.startClimb()
+                SuperstructureManager.startClimb()
             }
         }
 
@@ -65,22 +51,45 @@ object HumanControllers {
         bindAxis(Axes.RightX, turretJogChannel)
         bindAxis(Axes.LeftTrigger, manualShotPowerChannel)
 
-        whenAxis(Axes.RightTrigger) {
-            crosses(0.5) {
-                SuperstructureRoutines.prepareForShooting()
-            }
-
-            returns(0.5) {
-                SuperstructureRoutines.stopShooting()
-            }
+        //Intake
+        whenButton(Buttons.B) {
+            pressed { SuperstructureManager.startIntaking() }
+            released { SuperstructureManager.stopIntaking() }
         }
 
-        whenButton(Buttons.B) {
-            pressed {
-                SuperstructureRoutines.startIntaking()
-            }
-            released {
-                SuperstructureRoutines.stopIntaking()
+        //Shooter controls
+        whenButton(Buttons.Y) {
+            pressed { SuperstructureManager.lockFarShot() }
+        }
+
+        whenButton(Buttons.X) {
+            pressed { SuperstructureManager.unwindShooter() }
+        }
+
+        whenButton(Buttons.A) {
+            pressed { SuperstructureManager.lockNearShot() }
+        }
+
+        whenAxis(Axes.RightTrigger) {
+            crosses(0.5) { SuperstructureManager.startFiring() }
+            returns(0.5) { SuperstructureManager.stopFiring() }
+        }
+
+        //Turret manual
+        whenButton(Buttons.RightStick) {
+            pressed { ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.Jogging) }
+            released { ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.Hold) }
+        }
+
+        //Shooter RPM memory
+        whenButton(Buttons.Back) {
+            pressed { ShooterSubsystem.resetFlywheelAdjust() }
+        }
+
+        whenHatChanged(Hats.DPad) {
+            when (it) {
+                Direction.NORTH -> ShooterSubsystem.adjustFlywheelUp()
+                Direction.SOUTH -> ShooterSubsystem.adjustFlywheelDown()
             }
         }
     }

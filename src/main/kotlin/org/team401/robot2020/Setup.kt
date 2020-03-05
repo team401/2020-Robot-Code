@@ -8,6 +8,7 @@ import org.snakeskin.runtime.SnakeskinRuntime
 import org.snakeskin.utility.value.AsyncBoolean
 import org.snakeskin.utility.value.SelectableValue
 import org.team401.robot2020.config.constants.RobotConstants
+import org.team401.robot2020.control.robot.SuperstructureManager
 import org.team401.robot2020.control.robot.VisionManager
 import org.team401.robot2020.control.turret.TurretUpdater
 import org.team401.robot2020.subsystems.*
@@ -27,5 +28,6 @@ fun setup() {
 
     on (Events.DISABLED) {
         VisionManager.turretVisionOff()
+        SuperstructureManager.reset()
     }
 }
