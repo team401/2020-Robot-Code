@@ -1,6 +1,8 @@
 package org.team401.robot2020.subsystems
 
 import com.ctre.phoenix.motorcontrol.NeutralMode
+import com.ctre.phoenix.motorcontrol.can.VictorSPX
+import com.revrobotics.CANSparkMax
 import org.snakeskin.component.SparkMaxOutputVoltageReadingMode
 import org.snakeskin.component.impl.*
 import org.snakeskin.dsl.*
@@ -10,6 +12,7 @@ import org.snakeskin.utility.Ticker
 import org.team401.robot2020.config.constants.BallConstants
 import org.team401.robot2020.config.CANDevices
 import org.team401.robot2020.config.PneumaticDevices
+import org.team401.robot2020.config.constants.RobotConstants
 
 /**
  * Ball handling subsystem, including the intake, flying V, and tower components.
@@ -26,16 +29,9 @@ object BallSubsystem : Subsystem() {
         mockProducer = NullVictorSpxDevice.producer
     )
 
-    /*private val towerMotor = Hardware.createTalonFX(
+    private val towerMotor = Hardware.createTalonFX(
         CANDevices.towerMotor.canID,
         mockProducer = NullTalonFxDevice.producer
-    )
-     */
-
-    private val towerMotor = Hardware.createBrushlessSparkMax(
-        CANDevices.towerMotor.canID,
-        SparkMaxOutputVoltageReadingMode.MultiplyVbusDevice,
-        mockProducer = NullSparkMaxDevice.producer
     )
 
     private val intakeWheelsMotor = Hardware.createVictorSPX(
@@ -79,8 +75,7 @@ object BallSubsystem : Subsystem() {
 
     enum class IntakeStates {
         Stowed,
-        Intake,
-        GoToStow
+        Intake
     }
 
     val towerMachine: StateMachine<TowerStates> = stateMachine {
@@ -160,7 +155,7 @@ object BallSubsystem : Subsystem() {
         state(TowerStates.Shooting) {
             var count = 0
 
-            val shooterTicker = Ticker({true}, .15.Seconds, actionRate)
+            val shooterTicker = Ticker({true}, .15.Seconds, RobotConstants.rtPeriod)
 
             entry {
                 count = 0
@@ -249,7 +244,7 @@ object BallSubsystem : Subsystem() {
         }
 
         disabled {
-            action {
+            entry {
                 intakeExtenderPistons.setState(false)
                 intakeWheelsMotor.stop()
             }
@@ -260,17 +255,17 @@ object BallSubsystem : Subsystem() {
         towerMotor.invert(true)
         flyingVMotorLeft.invert(true)
         flyingVMotorRight.invert(false)
-
-        useHardware(towerMotor) {
-            inverted = true
-            setSmartCurrentLimit(40)
-        }
+        towerMotor.invert(false)
 
         useHardware(flyingVMotorLeft) {
             setNeutralMode(NeutralMode.Brake)
         }
 
         useHardware(flyingVMotorRight) {
+            setNeutralMode(NeutralMode.Brake)
+        }
+
+        useHardware(towerMotor) {
             setNeutralMode(NeutralMode.Brake)
         }
 

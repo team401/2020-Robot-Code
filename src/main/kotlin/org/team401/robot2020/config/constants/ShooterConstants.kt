@@ -1,12 +1,16 @@
 package org.team401.robot2020.config.constants
 
+import edu.wpi.first.wpilibj.controller.SimpleMotorFeedforward
 import org.snakeskin.measure.*
 import org.snakeskin.measure.distance.linear.LinearDistanceMeasureInches
 import org.snakeskin.measure.velocity.angular.AngularVelocityMeasureRadiansPerSecond
 import org.snakeskin.utility.value.SelectableDouble
 import org.snakeskin.utility.value.SelectableValue
+import org.team401.taxis.geometry.Pose2d
+import org.team401.taxis.geometry.Rotation2d
 import org.team401.taxis.geometry.Translation2d
 import org.team401.util.PolynomialRegression
+import org.team401.util.TrapezoidProfileLite
 
 /**
  * Various constants for the shooter.  Some general conventions:
@@ -21,24 +25,58 @@ object ShooterConstants {
         Translation2d(-9.5, 0.0)
     )
 
-    val turretCameraMountingAngleClose by SelectableValue(15.0.Degrees, 15.0.Degrees) //Angle of the turret camera in close mode
-    val turretCameraMountingAngleFar by SelectableValue(15.0.Degrees, 15.0.Degrees) //Angle of the turret camera in far mode
-    val turretCameraMountingHeightClose by SelectableValue(5.0.Inches, 5.0.Inches) //Height of the turret camera from the floor in close mode
-    val turretCameraMountingHeightFar by SelectableValue(5.0.Inches, 5.0.Inches) //Height of the turret camera from the floor in far mode
+    val turretCameraNearOriginToLens by SelectableValue(
+        Pose2d(-2.625, 0.0, Rotation2d.fromDegrees(-2.0)),
+        Pose2d()
+    )
+
+    val turretCameraFarOriginToLens by SelectableValue(
+        Pose2d(),
+        Pose2d()
+    )
+
+    val turretCameraNearLensHeight by SelectableValue(
+        42.25.Inches,
+        0.0.Inches
+    )
+
+    val turretCameraFarLensHeight by SelectableValue(
+        0.0.Inches,
+        0.0.Inches
+    )
+
+    val turretCameraNearHorizontalPlaneToLens by SelectableValue(
+        Rotation2d.fromDegrees(28.9),
+        Rotation2d.fromDegrees(0.0)
+    )
+
+    val turretCameraFarHorizontalPlaneToLens by SelectableValue(
+        Rotation2d.fromDegrees(0.0),
+        Rotation2d.fromDegrees(0.0)
+    )
 
     //Turret dynamics
     val turretKs by SelectableDouble(0.236, 0.0) // volts
     val turretKv by SelectableDouble(1.07, 0.0) // volts / rad/s
     val turretKa by SelectableDouble(0.00497, 0.0) // volts / rad/s/s
+    val turretModel = SimpleMotorFeedforward(turretKs, turretKv, turretKa)
 
     val turretKp by SelectableDouble(30.0, 0.0) // volts / (rad error)
     val turretKd by SelectableDouble(1.0, 0.0) // volts / (rad/s error)
-
     val turretTrackingKp by SelectableDouble(17.0, 0.0)
     val turretTrackingKd by SelectableDouble(0.1, 0.0)
 
     val turretVelocity = (180.0.Degrees / 0.3.Seconds).toRadiansPerSecond()
     val turretAccel = turretVelocity / 0.05.Seconds
+    val turretConstraints = TrapezoidProfileLite.Constraints(turretVelocity.value, turretAccel.value)
+
+    val turretNegativeLimit = (-20.0).Degrees.toRadians()
+    val turretPositiveLimit = 1.0.Revolutions.toRadians() + 20.0.Degrees.toRadians()
+    val turretRapidError = 20.0.Degrees.toRadians()
+
+    val turretJogRate = 0.25.RevolutionsPerSecond.toRadiansPerSecond()
+
+    val turretTrackingLookahead = 0.7.Seconds
 
     val turretRatio = 190.0 / 18.0 // Total reduction from gearbox shaft to turret axis
 
@@ -56,11 +94,13 @@ object ShooterConstants {
     //Profiled acceleration ramp of the flywheel
     val flywheelRampAcceleration = (8000.0.RevolutionsPerMinute / 2.0.Seconds).toRadiansPerSecondPerSecond()
 
-    //Default speed for the flywheel to spin at
-    val flywheelDefaultSpeed = (00.0.RevolutionsPerMinute).toRadiansPerSecond()
+    val flywheelNearConstantCorrection = 0.0.RevolutionsPerMinute.toRadiansPerSecond()
+    val flywheelFarConstantCorrection = 0.0.RevolutionsPerMinute.toRadiansPerSecond()
+    val flywheelFarShotSpeed = (9500.0.RevolutionsPerMinute).toRadiansPerSecond()
+    val flywheelMinimumSpeed = (1000.0.RevolutionsPerMinute).toRadiansPerSecond() //Min speed to allow manual adjustment to reach
 
     //Rate to bump the flywheel speed up or down by
-    val flywheelBump = 10.0.RevolutionsPerSecond.toRadiansPerSecond()
+    val flywheelBump = 50.0.RevolutionsPerMinute.toRadiansPerSecond()
 
     //LUT and regression
     val flywheelLUT = arrayOf(
@@ -72,10 +112,4 @@ object ShooterConstants {
     )
 
     val flywheelRegression = PolynomialRegression(flywheelLUT, 2)
-
-    val turretZeroOffset = 40.0.Degrees.toRadians()
-}
-
-fun main() {
-    println(ShooterConstants.flywheelRegression.R2())
 }

@@ -1,80 +1,88 @@
 package org.team401.robot2020.control.robot
 
-import org.snakeskin.measure.*
-import org.snakeskin.measure.time.TimeMeasureSeconds
-import org.snakeskin.rt.RealTimeTask
-import org.team401.robot2020.config.constants.ShooterConstants
+import org.team401.robot2020.subsystems.BallSubsystem
+import org.team401.robot2020.subsystems.ClimbingSubsystem
 import org.team401.robot2020.subsystems.ShooterSubsystem
-import org.team401.sevision.VisionConstants
-import kotlin.math.roundToInt
 
-object SuperstructureManager : RealTimeTask() {
-    enum class TurretAngleMode {
-        RobotRelative,
-        FieldRelative,
-        Vision,
-        Jog,
-        Hold
+/**
+ * Manages "superstructure" tasks for the robot.  This includes managing the state of the intake, hopper, tower,
+ * and shooter.  Effectively acts as supervisory logic to ensure that all of the systems mentioned are in the
+ * correct state
+ */
+object SuperstructureManager {
+    private var isLocked = false
+    private var isShooting = false
+
+    @Synchronized fun reset() {
+        isLocked = false
+        isShooting = false
     }
 
-    var activeControlMode = TurretAngleMode.Hold
-        @Synchronized get
-        @Synchronized set
-
-    var turretPositionSetpoint = ShooterConstants.turretZeroOffset
-    var turretVelocitySetpoint = 0.0.RadiansPerSecond
-    var distanceFromTarget = 0.0.Inches
-
-    @Synchronized override fun action(timestamp: TimeMeasureSeconds, dt: TimeMeasureSeconds) {
-        //Report turret angle to RobotState
-        RobotState.addTurretObservation(timestamp, ShooterSubsystem.getTurretAngle(), ShooterSubsystem.getTurretVelocity())
-        updateTurretFromVision(timestamp)
+    @Synchronized fun unwindShooter() {
+        isLocked = false
+        isShooting = false
+        ShooterSubsystem.flywheelMachine.disable()
+        ShooterSubsystem.kickerMachine.disable()
+        ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.LockToZero)
+        ShooterSubsystem.setHoodState(false)
     }
 
-    private fun updateTurretFromVision(timestamp: TimeMeasureSeconds) {
-        val latestAimingParameters = RobotState.getAimingParameters(
-            timestamp,
-            -1, VisionConstants.kMaxGoalTrackAge
-        ) ?: return
+    @Synchronized fun lockNearShot() {
+        isLocked = true
+        isShooting = false
+        ShooterSubsystem.flywheelMachine.setState(ShooterSubsystem.FlywheelStates.NearShotSpinUp)
+        ShooterSubsystem.kickerMachine.setState(ShooterSubsystem.KickerStates.Kick)
+        ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FieldRelativeTarget)
+        ShooterSubsystem.setHoodState(false)
+        VisionManager.turretVisionNearTargeting()
+    }
 
-        val lookaheadTime = 0.7.Seconds
+    @Synchronized fun lockFarShot() {
+        isLocked = true
+        isShooting = false
+        ShooterSubsystem.flywheelMachine.setState(ShooterSubsystem.FlywheelStates.FarShotSpinUp)
+        ShooterSubsystem.kickerMachine.setState(ShooterSubsystem.KickerStates.Kick)
+        ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FieldRelativeTarget)
+        ShooterSubsystem.setHoodState(true)
+        VisionManager.turretVisionFarTargeting()
+    }
 
-        val vehicleToTurretNow = RobotState.getVehicleToTurret(timestamp)
-
-        val fieldToTurret = RobotState.getFieldToTurret(timestamp)
-        val fieldToPredictedTurret = RobotState.getPredictedFieldToTurret(lookaheadTime)
-
-        val turretToPredictedTurret = fieldToTurret
-            .inverse() // turret -> field
-            .transformBy(fieldToPredictedTurret) // turret -> predicted turret
-
-        val predictedTurretToGoal = turretToPredictedTurret
-            .inverse() // Predicted turret -> turret
-            .transformBy(latestAimingParameters.turretToGoal) // Predicted turret -> goal
-
-        val correctedRangeToTarget = predictedTurretToGoal.translation.norm()
-
-        println(correctedRangeToTarget.roundToInt())
-
-        val turretError = vehicleToTurretNow.rotation
-            .inverse()
-            .rotateBy(latestAimingParameters.robotToGoalRotation)
-
-        distanceFromTarget = correctedRangeToTarget.Inches
-        turretPositionSetpoint = ShooterSubsystem.getTurretAngle() + turretError.radians.Radians
-
-        val velocity = RobotState.vehicleVelocityMeasured
-        turretVelocitySetpoint =
-            (-((latestAimingParameters.robotToGoalRotation.sin() * velocity.dx / latestAimingParameters.range) + velocity.dtheta)).RadiansPerSecond
-
-        if (turretPositionSetpoint > (420.0.Degrees.toRadians())) {
-            turretPositionSetpoint = 420.0.Degrees.toRadians()
-            turretVelocitySetpoint = 0.0.RadiansPerSecond
+    @Synchronized fun startFiring() {
+        if (isLocked) {
+            ShooterSubsystem.flywheelMachine.setState(ShooterSubsystem.FlywheelStates.HoldSetpoint)
+            ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.Hold)
+            BallSubsystem.towerMachine.setState(BallSubsystem.TowerStates.Shooting)
+            BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Shooting)
+            isShooting = true
         }
+    }
 
-        if (turretPositionSetpoint < (0.0.Radians)) {
-            turretPositionSetpoint = 0.0.Radians
-            turretVelocitySetpoint = 0.0.RadiansPerSecond
+    @Synchronized fun stopFiring() {
+        if (isShooting) {
+            ShooterSubsystem.flywheelMachine.back() //Back to appropriate spin up state
+            ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FieldRelativeTarget)
+            BallSubsystem.towerMachine.setState(BallSubsystem.TowerStates.Waiting)
+            BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Idle)
+            isShooting = false
         }
+    }
+
+    @Synchronized fun startIntaking() {
+        BallSubsystem.intakeMachine.setState(BallSubsystem.IntakeStates.Intake)
+        BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Intaking)
+    }
+
+    @Synchronized fun stopIntaking() {
+        BallSubsystem.intakeMachine.setState(BallSubsystem.IntakeStates.Stowed)
+        BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Idle)
+    }
+
+    @Synchronized fun startClimb() {
+        ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.LockForClimb)
+        ShooterSubsystem.flywheelMachine.disable()
+        ClimbingSubsystem.climbingMachine.setState(ClimbingSubsystem.ClimbingStates.Deploying)
+        BallSubsystem.intakeMachine.setState(BallSubsystem.IntakeStates.Stowed)
+        BallSubsystem.flyingVMachine.disable()
+        BallSubsystem.towerMachine.disable()
     }
 }

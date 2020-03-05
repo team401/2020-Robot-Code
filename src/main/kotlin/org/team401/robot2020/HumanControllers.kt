@@ -4,13 +4,7 @@ import org.snakeskin.dsl.*
 import org.snakeskin.hid.channel.AxisChannel
 import org.snakeskin.hid.channel.ButtonChannel
 import org.snakeskin.logic.Direction
-import org.snakeskin.measure.Degrees
-import org.snakeskin.measure.Inches
-import org.snakeskin.measure.Radians
 import org.team401.robot2020.control.robot.SuperstructureManager
-import org.team401.robot2020.control.robot.SuperstructureRoutines
-import org.team401.robot2020.control.robot.TurretLimelight
-import org.team401.robot2020.subsystems.BallSubsystem
 import org.team401.robot2020.subsystems.ClimbingSubsystem
 import org.team401.robot2020.subsystems.ShooterSubsystem
 
@@ -18,22 +12,12 @@ object HumanControllers {
     val driveTranslationChannel = AxisChannel()
     val driveRotationChannel = AxisChannel()
     val driveQuickTurnChannel = ButtonChannel()
+    val turretJogChannel = AxisChannel()
+    val manualShotPowerChannel = AxisChannel()
 
     val leftStick = HumanControls.t16000m(0) {
         invertAxis(Axes.Pitch)
         bindAxis(Axes.Pitch, driveTranslationChannel)
-
-        whenButton(Buttons.StickBottom) {
-            pressed {
-                ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.Seeking)
-                TurretLimelight.ledOn()
-            }
-
-            released {
-                ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.LockToZero)
-                TurretLimelight.ledOff()
-            }
-        }
     }
 
     val rightStick = HumanControls.t16000m(1) {
@@ -43,7 +27,7 @@ object HumanControllers {
         //<editor-fold desc="Climbing Controls">
         whenButton(Buttons.StickLeft) {
             pressed {
-                SuperstructureRoutines.startClimb()
+                SuperstructureManager.startClimb()
             }
         }
 
@@ -64,26 +48,48 @@ object HumanControllers {
     }
 
     val gamePad = HumanControls.f310(2) {
-        whenAxis(Axes.RightTrigger) {
-            crosses(0.5) {
-                SuperstructureManager.activeControlMode = SuperstructureManager.TurretAngleMode.Vision
-                visionEnabled = true
-                SuperstructureRoutines.prepareForShooting()
-                SuperstructureRoutines.fireShooter()
-            }
+        bindAxis(Axes.RightX, turretJogChannel)
+        bindAxis(Axes.LeftTrigger, manualShotPowerChannel)
 
-            returns(0.5) {
-                SuperstructureRoutines.stopShooting()
-                visionEnabled = false
-            }
+        //Intake
+        whenButton(Buttons.B) {
+            pressed { SuperstructureManager.startIntaking() }
+            released { SuperstructureManager.stopIntaking() }
         }
 
-        whenButton(Buttons.B) {
-            pressed {
-                SuperstructureRoutines.startIntaking()
-            }
-            released {
-                SuperstructureRoutines.stopIntaking()
+        //Shooter controls
+        whenButton(Buttons.Y) {
+            pressed { SuperstructureManager.lockFarShot() }
+        }
+
+        whenButton(Buttons.X) {
+            pressed { SuperstructureManager.unwindShooter() }
+        }
+
+        whenButton(Buttons.A) {
+            pressed { SuperstructureManager.lockNearShot() }
+        }
+
+        whenAxis(Axes.RightTrigger) {
+            crosses(0.5) { SuperstructureManager.startFiring() }
+            returns(0.5) { SuperstructureManager.stopFiring() }
+        }
+
+        //Turret manual
+        whenButton(Buttons.RightStick) {
+            pressed { ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.Jogging) }
+            released { ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.Hold) }
+        }
+
+        //Shooter RPM memory
+        whenButton(Buttons.Back) {
+            pressed { ShooterSubsystem.resetFlywheelAdjust() }
+        }
+
+        whenHatChanged(Hats.DPad) {
+            when (it) {
+                Direction.NORTH -> ShooterSubsystem.adjustFlywheelUp()
+                Direction.SOUTH -> ShooterSubsystem.adjustFlywheelDown()
             }
         }
     }

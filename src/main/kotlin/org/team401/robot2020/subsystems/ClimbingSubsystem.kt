@@ -31,6 +31,9 @@ import org.team401.robot2020.config.constants.ClimbingConstants
 import org.team401.robot2020.config.constants.RobotConstants
 import org.team401.robot2020.util.CharacterizationRoutine
 import org.team401.robot2020.util.getAcceleration
+import org.team401.util.PIDControllerLite
+import org.team401.util.ProfiledPIDControllerLite
+import org.team401.util.TrapezoidProfileLite
 import kotlin.math.tan
 import kotlin.time.milliseconds
 
@@ -46,7 +49,7 @@ object ClimbingSubsystem : Subsystem() {
     )
 
 
-    private val lockingPiston= Hardware.createPneumaticChannel(
+    private val lockingPiston = Hardware.createPneumaticChannel(
         PneumaticDevices.climbingLock,
         halMock = true
     )
@@ -70,30 +73,30 @@ object ClimbingSubsystem : Subsystem() {
         ClimbingConstants.rightElevatorKa
     )
 
-    private val elevatorConstraints = TrapezoidProfile.Constraints(
+    private val elevatorConstraints = TrapezoidProfileLite.Constraints(
         ClimbingConstants.maxAngularVelocity.value,
         ClimbingConstants.maxAngularAccel.value
     )
     
-    private val leftElevatorController = ProfiledPIDController(
+    private val leftElevatorController = ProfiledPIDControllerLite(
         ClimbingConstants.leftElevatorKp,
         0.0, 0.0,
         elevatorConstraints,
         RobotConstants.rtPeriod.value
     )
 
-    private val rightElevatorController = ProfiledPIDController(
+    private val rightElevatorController = ProfiledPIDControllerLite(
         ClimbingConstants.rightElevatorKp,
         0.0, 0.0,
         elevatorConstraints,
         RobotConstants.rtPeriod.value
     )
 
-    private var lastLeftElevatorSetpoint = TrapezoidProfile.State()
-    private var lastRightElevatorSetpoint = TrapezoidProfile.State()
+    private var lastLeftElevatorSetpoint = TrapezoidProfileLite.State()
+    private var lastRightElevatorSetpoint = TrapezoidProfileLite.State()
 
-    private val leftElevatorJogController = PIDController(ClimbingConstants.leftElevatorKp, 0.0, 0.0)
-    private val rightElevatorJogController = PIDController(ClimbingConstants.rightElevatorKp, 0.0, 0.0)
+    private val leftElevatorJogController = PIDControllerLite(ClimbingConstants.leftElevatorKp, 0.0, 0.0)
+    private val rightElevatorJogController = PIDControllerLite(ClimbingConstants.rightElevatorKp, 0.0, 0.0)
 
     val leftElevatorCharacterizationRoutine = CharacterizationRoutine(leftElevator.gearbox, leftElevator.gearbox)
     val rightElevatorCharacterizationRoutine = CharacterizationRoutine(rightElevator.gearbox, rightElevator.gearbox)
@@ -113,7 +116,7 @@ object ClimbingSubsystem : Subsystem() {
         val feedbackVolts = leftElevatorController.calculate(leftElevator.gearbox.getAngularPosition().toRadians().value, angularTarget.value)
         val ffVolts = leftElevatorModel.calculate(
             leftElevatorController.setpoint.velocity,
-            leftElevatorController.getAcceleration(elevatorConstraints, lastLeftElevatorSetpoint)
+            leftElevatorController.getAcceleration(lastLeftElevatorSetpoint)
         )
         lastLeftElevatorSetpoint = leftElevatorController.setpoint
 
@@ -129,7 +132,7 @@ object ClimbingSubsystem : Subsystem() {
         val feedbackVolts = rightElevatorController.calculate(rightElevator.gearbox.getAngularPosition().toRadians().value, angularTarget.value)
         val ffVolts = rightElevatorModel.calculate(
             rightElevatorController.setpoint.velocity,
-            rightElevatorController.getAcceleration(elevatorConstraints, lastRightElevatorSetpoint)
+            rightElevatorController.getAcceleration(lastRightElevatorSetpoint)
         )
         lastRightElevatorSetpoint = rightElevatorController.setpoint
 
@@ -150,8 +153,8 @@ object ClimbingSubsystem : Subsystem() {
     private fun resetProfiles() {
         leftElevatorController.reset(leftElevator.gearbox.getAngularPosition().toRadians().value)
         rightElevatorController.reset(rightElevator.gearbox.getAngularPosition().toRadians().value)
-        lastLeftElevatorSetpoint = TrapezoidProfile.State()
-        lastRightElevatorSetpoint = TrapezoidProfile.State()
+        lastLeftElevatorSetpoint = TrapezoidProfileLite.State()
+        lastRightElevatorSetpoint = TrapezoidProfileLite.State()
     }
 
     /**
