@@ -60,6 +60,7 @@ object HumanControllers {
         //Shooter controls
         whenButton(Buttons.Y) {
             pressed { SuperstructureManager.lockFarShot() }
+            released { SuperstructureManager.releaseVisionLock() }
         }
 
         whenButton(Buttons.X) {
@@ -68,6 +69,7 @@ object HumanControllers {
 
         whenButton(Buttons.A) {
             pressed { SuperstructureManager.lockNearShot() }
+            released { SuperstructureManager.releaseVisionLock() }
         }
 
         whenAxis(Axes.RightTrigger) {

@@ -4,7 +4,7 @@ import com.ctre.phoenix.motorcontrol.InvertType
 import com.ctre.phoenix.motorcontrol.NeutralMode
 import com.ctre.phoenix.motorcontrol.StatusFrame
 import com.revrobotics.CANSparkMax
-import edu.wpi.first.wpilibj.controller.PIDController
+import edu.wpi.first.wpilibj.RobotController
 import edu.wpi.first.wpilibj.controller.SimpleMotorFeedforward
 import org.snakeskin.component.Gearbox
 import org.snakeskin.component.impl.NullPigeonImuDevice
@@ -17,6 +17,7 @@ import org.snakeskin.utility.CheesyDriveController
 import org.team401.robot2020.HumanControllers
 import org.team401.robot2020.config.*
 import org.team401.robot2020.config.constants.DrivetrainConstants
+import org.team401.robot2020.config.constants.RobotConstants
 import org.team401.robot2020.control.robot.RobotState
 import org.team401.taxis.diffdrive.component.IModeledDifferentialDrivetrain
 import org.team401.taxis.diffdrive.component.impl.YawHeadingSource
@@ -25,6 +26,7 @@ import org.team401.taxis.diffdrive.control.DrivetrainPathManager
 import org.team401.taxis.diffdrive.control.NonlinearFeedbackPathController
 import org.team401.taxis.geometry.Pose2d
 import org.team401.taxis.geometry.Rotation2d
+import org.team401.util.PIDControllerLite
 
 object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
     //<editor-fold desc="Hardware Devices">
@@ -88,9 +90,8 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
         DrivetrainConstants.rightKv
     )
 
-    //Lazy init since these make HAL calls for usage reporting (for some stupid reason)
-    private val leftPid by lazy { PIDController(DrivetrainConstants.leftKp, 0.0, 0.0) }
-    private val rightPid by lazy { PIDController(DrivetrainConstants.rightKp, 0.0, 0.0) }
+    private val leftPid = PIDControllerLite(DrivetrainConstants.leftKp, 0.0, 0.0)
+    private val rightPid = PIDControllerLite(DrivetrainConstants.rightKp, 0.0, 0.0)
 
     val pathManager = DrivetrainPathManager(model, NonlinearFeedbackPathController())
     override val driveState = RobotState
@@ -145,7 +146,7 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
         }
 
         disabled {
-            action {
+            entry {
                 stop()
             }
         }
@@ -160,6 +161,9 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
     private fun configForStartup() {
         left.couple()
         right.couple()
+
+        left.setAngularPosition(0.0.Radians)
+        right.setAngularPosition(0.0.Radians)
 
         useHardware(leftMaster) {
             inverted = true
@@ -186,22 +190,22 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
 
     private fun configForAutoDriving() {
         useHardware(leftMaster) {
-            setOpenLoopRampRate(0.0)
+            openLoopRampRate = 0.0
         }
 
         useHardware(rightMaster) {
-            setOpenLoopRampRate(0.0)
+            openLoopRampRate = 0.0
         }
     }
 
     private fun configForTeleopDriving() {
         useHardware(leftMaster) {
-            setOpenLoopRampRate(.25)
+            openLoopRampRate = .25
 
         }
 
         useHardware(rightMaster) {
-            setOpenLoopRampRate(.25)
+            openLoopRampRate = .25
 
         }
     }
@@ -209,7 +213,7 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
 
     override fun setup() {
         configForStartup()
-        setPose(Pose2d.fromRotation(Rotation2d.fromDegrees(180.0)), readTimestamp())
+        setPose(Pose2d.fromRotation(Rotation2d.fromDegrees(0.0)), readTimestamp())
 
         on (Events.TELEOP_ENABLED) {
             driveMachine.setState(DriveStates.OperatorControl)

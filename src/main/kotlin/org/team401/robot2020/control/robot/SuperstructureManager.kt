@@ -25,6 +25,7 @@ object SuperstructureManager {
         ShooterSubsystem.kickerMachine.disable()
         ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.LockToZero)
         ShooterSubsystem.setHoodState(false)
+        VisionManager.turretVisionOff()
     }
 
     @Synchronized fun lockNearShot() {
@@ -47,10 +48,14 @@ object SuperstructureManager {
         VisionManager.turretVisionFarTargeting()
     }
 
+    @Synchronized fun releaseVisionLock() {
+        if (isLocked) {
+            VisionManager.turretVisionOff()
+        }
+    }
+
     @Synchronized fun startFiring() {
         if (isLocked) {
-            ShooterSubsystem.flywheelMachine.setState(ShooterSubsystem.FlywheelStates.HoldSetpoint)
-            ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.Hold)
             BallSubsystem.towerMachine.setState(BallSubsystem.TowerStates.Shooting)
             BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Shooting)
             isShooting = true
@@ -59,8 +64,6 @@ object SuperstructureManager {
 
     @Synchronized fun stopFiring() {
         if (isShooting) {
-            ShooterSubsystem.flywheelMachine.back() //Back to appropriate spin up state
-            ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FieldRelativeTarget)
             BallSubsystem.towerMachine.setState(BallSubsystem.TowerStates.Waiting)
             BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Idle)
             isShooting = false

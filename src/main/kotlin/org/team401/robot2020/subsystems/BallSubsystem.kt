@@ -95,12 +95,8 @@ object BallSubsystem : Subsystem() {
         }
 
         state(TowerStates.Feeding) {
-            entry {
-                //flyingVMachine.setState(FlyingVStates.Reverse)
-            }
-
-            action {
-                towerMotor.setAngularVelocitySetpoint(BallConstants.towerFeedingRate.toRadiansPerSecond())
+            action(0.01.Seconds) {
+                towerMotor.setPercentOutput(BallConstants.towerFeedingPower)
 
                 val bottomState = bottomGateSensor.getState()
                 val topState = topGateSensor.getState()
@@ -122,10 +118,6 @@ object BallSubsystem : Subsystem() {
         }
 
         state(TowerStates.Reversing) {
-            entry {
-                //flyingVMachine.setState(FlyingVStates.Reverse)
-            }
-
             action {
                 towerMotor.setPercentOutput(BallConstants.towerReversingPower)
 
@@ -138,10 +130,6 @@ object BallSubsystem : Subsystem() {
         }
 
         state(TowerStates.Full) {
-            entry {
-                //flyingVMachine.disable()
-            }
-
             action {
                 towerMotor.stop()
 
@@ -154,8 +142,6 @@ object BallSubsystem : Subsystem() {
 
         state(TowerStates.Shooting) {
             var count = 0
-
-            val shooterTicker = Ticker({true}, .15.Seconds, RobotConstants.rtPeriod)
 
             entry {
                 count = 0
@@ -201,8 +187,8 @@ object BallSubsystem : Subsystem() {
 
         state(FlyingVStates.Idle) {
             tickedAction(BallConstants.flyingVIdleTimeout, {
-                flyingVMotorLeft.setPercentOutput(BallConstants.flyingVIdlePower)
-                flyingVMotorRight.setPercentOutput(BallConstants.flyingVIdlePower)
+                flyingVMotorLeft.setPercentOutput(BallConstants.flyingVLeftIntakingPower)
+                flyingVMotorRight.setPercentOutput(BallConstants.flyingVRightIntakingPower)
                 towerMachine.isInState(TowerStates.Waiting)
             }, { disable() })
         }
@@ -271,7 +257,7 @@ object BallSubsystem : Subsystem() {
 
         intakeExtenderPistons.setState(false)
 
-        on (Events.ENABLED) {
+        on (Events.TELEOP_ENABLED) {
             towerMachine.setState(TowerStates.Waiting)
             intakeMachine.setState(IntakeStates.Stowed)
         }

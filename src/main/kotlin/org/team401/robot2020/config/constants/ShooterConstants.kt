@@ -59,7 +59,6 @@ object ShooterConstants {
     val turretKs by SelectableDouble(0.236, 0.0) // volts
     val turretKv by SelectableDouble(1.07, 0.0) // volts / rad/s
     val turretKa by SelectableDouble(0.00497, 0.0) // volts / rad/s/s
-    val turretModel = SimpleMotorFeedforward(turretKs, turretKv, turretKa)
 
     val turretKp by SelectableDouble(30.0, 0.0) // volts / (rad error)
     val turretKd by SelectableDouble(1.0, 0.0) // volts / (rad/s error)
@@ -68,7 +67,6 @@ object ShooterConstants {
 
     val turretVelocity = (180.0.Degrees / 0.3.Seconds).toRadiansPerSecond()
     val turretAccel = turretVelocity / 0.05.Seconds
-    val turretConstraints = TrapezoidProfileLite.Constraints(turretVelocity.value, turretAccel.value)
 
     val turretNegativeLimit = (-20.0).Degrees.toRadians()
     val turretPositiveLimit = 1.0.Revolutions.toRadians() + 20.0.Degrees.toRadians()
@@ -87,9 +85,9 @@ object ShooterConstants {
     val flywheelKv by SelectableDouble(0.0106, 0.0) // volts / rev/s
     val flywheelKa by SelectableDouble(0.000438, 0.0) //volts / rad/s/s
 
-    val flywheelKp by SelectableDouble(0.07, 0.0) // Talon FX p unit
-
-    val flywheelMaxVelocity = 9000.0.RevolutionsPerMinute.toRadiansPerSecond()
+    val flywheelKp by SelectableDouble(0.3, 0.0) // Talon FX p unit
+    val flywheelKi by SelectableDouble(0.0, 0.0)
+    val flywheelKd by SelectableDouble(5.0, 0.0)
 
     //Profiled acceleration ramp of the flywheel
     val flywheelRampAcceleration = (8000.0.RevolutionsPerMinute / 2.0.Seconds).toRadiansPerSecondPerSecond()

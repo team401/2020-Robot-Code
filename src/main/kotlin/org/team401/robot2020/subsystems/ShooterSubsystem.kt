@@ -297,6 +297,10 @@ object ShooterSubsystem: Subsystem() {
             configVelocityMeasurementWindow(1, 1000)
             configVelocityMeasurementPeriod(VelocityMeasPeriod.Period_50Ms, 1000)
 
+            config_kP(0, ShooterConstants.flywheelKp, 1000)
+            config_kI(0, ShooterConstants.flywheelKi, 1000)
+            config_kD(0, ShooterConstants.flywheelKd, 1000)
+
             enableVoltageCompensation(true)
             configVoltageCompSaturation(12.0)
         }
@@ -318,9 +322,12 @@ object ShooterSubsystem: Subsystem() {
             setSmartCurrentLimit(20)
         }
 
-        turretRotationGearbox.setAngularPosition(0.0.Radians)
+        if (RebootTracker.hasRebooted) {
+            //We need to origin the turret
+            turretRotationGearbox.setAngularPosition(0.0.Radians)
+        }
 
-        on (Events.ENABLED) {
+        on (Events.TELEOP_ENABLED) {
             turretMachine.setState(TurretStates.Hold)
             setHoodState(false)
         }
