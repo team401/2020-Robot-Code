@@ -38,6 +38,10 @@ object RobotState: DifferentialDriveState(100, DrivetrainSubsystem.model.driveKi
         @Synchronized get
         private set
 
+    init {
+        vehicleToTurret[InterpolatingDouble(0.0)] = Pose2d(ShooterConstants.robotToTurret, Rotation2d.identity())
+    }
+
     /**
      * Manually observes a new field to target reference.  Useful in auto to override the lock with a known location.
      */
@@ -183,12 +187,21 @@ object RobotState: DifferentialDriveState(100, DrivetrainSubsystem.model.driveKi
             .inverse()
             .transformBy(fieldToTargetLock.fieldToTarget)
 
+        val turretToGoal = getVehicleToTurret(timestamp)
+            .inverse() //Turret to vehicle
+            .transformBy(getFieldToVehicle(timestamp).inverse()) //Turret to field
+            .transformBy(fieldToTargetLock.fieldToTarget) //Turret to target
+
+
+        /*
         val turretToGoal = getFieldToTurret(timestamp)
             .inverse() // Turret -> Field
             .transformBy(fieldToTargetLock.fieldToTarget) // Turret -> Target
 
+         */
+
         val vehicleToGoalDirection = vehicleToGoal.translation.direction() //Directions of vectors oriented at the target
-        val turretToGoalDirection = turretToGoal.translation.direction()
+        val turretToGoalDirection = vehicleToGoal.transformBy(Pose2d.fromTranslation(ShooterConstants.robotToTurret)).translation.direction()
 
         val vehicleToTurretNow = getVehicleToTurret(timestamp)
 
@@ -207,7 +220,7 @@ object RobotState: DifferentialDriveState(100, DrivetrainSubsystem.model.driveKi
 
         val turretError = vehicleToTurretNow.rotation //Relative rotation the turret must perform to align with the goal
             .inverse()
-            .rotateBy(turretToGoalDirection)
+            .rotateBy(vehicleToGoalDirection)
 
         val vehicleRange = vehicleToGoal.translation.norm()
         val vehicleVelocity = vehicleVelocityMeasured

@@ -13,7 +13,7 @@ object BallConstants {
     val towerFeedingPower = 0.5
     val towerSpacingTime = .02.Seconds
     val towerShootingPower = 0.75
-    val towerManualReversePower = -.5
+    val towerManualReversePower = -.75
 
     val flyingVLeftIntakingPower = 1.0
     val flyingVRightIntakingPower = .75

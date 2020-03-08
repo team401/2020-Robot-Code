@@ -118,7 +118,6 @@ class TurretController(
 
     private fun updateTracking(goal: Rotation2d, feedVelocity: AngularVelocityMeasureRadiansPerSecond) {
         val angle = wrapAngle(goal)
-        println(angle.toDegrees())
 
         if (shouldRapid(angle)) {
            //We need to rapid to the angle

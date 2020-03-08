@@ -23,16 +23,16 @@ object DrivetrainConstants: DifferentialDrivetrainGeometry, DifferentialDrivetra
     //Chassis Dynamics Constants
     override val trackScrubFactor by SelectableDouble(1.0020927384804579, 1.0) // emp. wheelbase / geom. wheelbase
     override val angularDrag by SelectableDouble(0.0, 0.0) //unit?
-    override val inertialMass by SelectableDouble(46.75, 0.0) // kg
-    override val momentOfInertia by SelectableDouble(4.779, 0.0) // kg m^2
+    override val inertialMass by SelectableDouble(64.09, 0.0) // kg
+    override val momentOfInertia by SelectableDouble(5.632, 0.0) // kg m^2
 
     //Transmission Dynamics Constants
-    override val leftKs by SelectableDouble(0.216, 1.0) // volts
-    override val leftKv by SelectableDouble(0.186, 1.0) // volts / rad/s
-    override val leftKa by SelectableDouble(0.0172, 1.0) //volts / rad/s/s
-    override val rightKs by SelectableDouble(0.341, 1.0)
-    override val rightKv by SelectableDouble(0.187, 1.0)
-    override val rightKa by SelectableDouble(0.0163, 1.0)
+    override val leftKs by SelectableDouble(0.225, 1.0) // volts
+    override val leftKv by SelectableDouble(0.217, 1.0) // volts / rad/s
+    override val leftKa by SelectableDouble(0.00571, 1.0) //volts / rad/s/s
+    override val rightKs by SelectableDouble(0.225, 1.0)
+    override val rightKv by SelectableDouble(0.211, 1.0)
+    override val rightKa by SelectableDouble(0.00797, 1.0)
 
     //Controller Parameters
     val leftKp by SelectableDouble(.25, 0.0) // volts / (rad/s error)

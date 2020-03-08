@@ -17,7 +17,7 @@ object VisionManager: RealTimeTask() {
         ShooterConstants.turretCameraNearHorizontalPlaneToLens
     )
 
-    private const val nearPipeline = 0 //TODO MAKE 1
+    private const val nearPipeline = 1
     private const val farPipeline = 2
 
     @Synchronized override fun action(timestamp: TimeMeasureSeconds, dt: TimeMeasureSeconds) {

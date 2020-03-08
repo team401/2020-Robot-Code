@@ -21,19 +21,22 @@ object SuperstructureManager {
     @Synchronized fun unwindShooter() {
         isLocked = false
         isShooting = false
-        ShooterSubsystem.flywheelMachine.disable()
-        ShooterSubsystem.kickerMachine.disable()
-        ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.LockToZero)
+        ShooterSubsystem.flywheelMachine.disable().waitFor()
+        ShooterSubsystem.kickerMachine.disable().waitFor()
+        ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.LockToZero).waitFor()
         ShooterSubsystem.setHoodState(false)
+        BallSubsystem.towerMachine.setState(BallSubsystem.TowerStates.Waiting).waitFor()
+        BallSubsystem.flyingVMachine.disable().waitFor()
+        BallSubsystem.intakeMachine.setState(BallSubsystem.IntakeStates.Stowed).waitFor()
         VisionManager.turretVisionOff()
     }
 
     @Synchronized fun lockNearShot() {
         isLocked = true
         isShooting = false
-        ShooterSubsystem.flywheelMachine.setState(ShooterSubsystem.FlywheelStates.NearShotSpinUp)
-        ShooterSubsystem.kickerMachine.setState(ShooterSubsystem.KickerStates.Kick)
-        ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FieldRelativeTarget)
+        ShooterSubsystem.flywheelMachine.setState(ShooterSubsystem.FlywheelStates.NearShotSpinUp).waitFor()
+        ShooterSubsystem.kickerMachine.setState(ShooterSubsystem.KickerStates.Kick).waitFor()
+        ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FieldRelativeTarget).waitFor()
         ShooterSubsystem.setHoodState(false)
         VisionManager.turretVisionNearTargeting()
     }
@@ -41,9 +44,9 @@ object SuperstructureManager {
     @Synchronized fun lockFarShot() {
         isLocked = true
         isShooting = false
-        ShooterSubsystem.flywheelMachine.setState(ShooterSubsystem.FlywheelStates.FarShotSpinUp)
-        ShooterSubsystem.kickerMachine.setState(ShooterSubsystem.KickerStates.Kick)
-        ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FieldRelativeTarget)
+        ShooterSubsystem.flywheelMachine.setState(ShooterSubsystem.FlywheelStates.FarShotSpinUp).waitFor()
+        ShooterSubsystem.kickerMachine.setState(ShooterSubsystem.KickerStates.Kick).waitFor()
+        ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.FieldRelativeTarget).waitFor()
         ShooterSubsystem.setHoodState(true)
         VisionManager.turretVisionFarTargeting()
     }
@@ -54,10 +57,22 @@ object SuperstructureManager {
         }
     }
 
+    @Synchronized fun spitBalls() {
+        isLocked = true
+        isShooting = true
+        ShooterSubsystem.flywheelMachine.setState(ShooterSubsystem.FlywheelStates.Spit)
+        ShooterSubsystem.kickerMachine.setState(ShooterSubsystem.KickerStates.Kick)
+        ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.LockToZero)
+        ShooterSubsystem.setHoodState(false)
+        BallSubsystem.towerMachine.setState(BallSubsystem.TowerStates.Shooting)
+        BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Shooting)
+    }
+
     @Synchronized fun startFiring() {
         if (isLocked) {
             BallSubsystem.towerMachine.setState(BallSubsystem.TowerStates.Shooting)
             BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Shooting)
+            BallSubsystem.intakeMachine.setState(BallSubsystem.IntakeStates.Intake)
             isShooting = true
         }
     }
@@ -66,6 +81,7 @@ object SuperstructureManager {
         if (isShooting) {
             BallSubsystem.towerMachine.setState(BallSubsystem.TowerStates.Waiting)
             BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Idle)
+            BallSubsystem.intakeMachine.setState(BallSubsystem.IntakeStates.Stowed)
             isShooting = false
         }
     }

@@ -32,11 +32,12 @@ object DriveTrajectories {
         private val returnMidPose = Pose2d(206.0, 240.0, Rotation2d.fromDegrees(21.5))
         private val shootPose = Pose2d(140.0, 226.533, Rotation2d.identity())
 
-        fun generateTrench6TrajectoryCollect(wallToRightBumper: Double): Trajectory<TimedState<Pose2dWithCurvature>> {
-            val startingPose = Pose2d.fromTranslation(Translation2d(startingLineDistance, wallToRightBumper))
-                .transformBy(RobotConstants.bumperRightToOrigin)
+        lateinit var trench6TrajectoryCollect: Trajectory<TimedState<Pose2dWithCurvature>>
 
-            return pathManager.generateTrajectory(
+        fun generateTrench6TrajectoryCollect(wallToLeftBumper: Double) {
+            val startingPose = Pose2d.fromTranslation(Translation2d(startingLineDistance, 320.0 - wallToLeftBumper - 17.0))
+
+            trench6TrajectoryCollect = pathManager.generateTrajectory(
                 false,
                 listOf(
                     startingPose,
@@ -50,9 +51,9 @@ object DriveTrajectories {
             )
         }
 
-       val trench6TrajectoryReturn = pathManager.generateTrajectory(
+        val trench6TrajectoryReturn = pathManager.generateTrajectory(
            true,
-           listOf(
+            listOf(
                endPose,
                returnMidPose,
                shootPose
@@ -61,7 +62,7 @@ object DriveTrajectories {
            12.0 * 12.0,
            24.0 * 12.0,
            9.0
-       )
+        )
     }
 
     val testTrajectory = pathManager.generateTrajectory(

@@ -1,32 +1,18 @@
 package org.team401.robot2020.subsystems
 
 import com.ctre.phoenix.motorcontrol.NeutralMode
-import com.revrobotics.CANSparkMax
 import edu.wpi.first.wpilibj.controller.ElevatorFeedforward
-import edu.wpi.first.wpilibj.controller.PIDController
-import edu.wpi.first.wpilibj.controller.ProfiledPIDController
-import edu.wpi.first.wpilibj.controller.SimpleMotorFeedforward
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
-import edu.wpi.first.wpilibj.trajectory.TrapezoidProfile
-import org.snakeskin.component.Gearbox
 import org.snakeskin.component.LinearTransmission
 import org.snakeskin.component.SmartGearbox
-import org.snakeskin.component.SparkMaxOutputVoltageReadingMode
-import org.snakeskin.component.impl.NullCanCoderDevice
-import org.snakeskin.component.impl.NullPneumaticChannel
-import org.snakeskin.component.impl.NullSparkMaxDevice
 import org.snakeskin.component.impl.NullTalonSrxDevice
 import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
 import org.snakeskin.measure.*
-import org.snakeskin.measure.distance.angular.AngularDistanceMeasureDegrees
 import org.snakeskin.measure.distance.linear.LinearDistanceMeasureInches
-import org.snakeskin.runtime.SnakeskinRuntime
 import org.snakeskin.utility.Ticker
 import org.snakeskin.utility.value.AsyncBoolean
-import org.snakeskin.utility.value.AsyncValue
 import org.team401.robot2020.config.CANDevices
-import org.team401.robot2020.config.PneumaticDevices
+import org.team401.robot2020.config.PneumaticChannels
 import org.team401.robot2020.config.constants.ClimbingConstants
 import org.team401.robot2020.config.constants.RobotConstants
 import org.team401.robot2020.util.CharacterizationRoutine
@@ -34,8 +20,6 @@ import org.team401.robot2020.util.getAcceleration
 import org.team401.util.PIDControllerLite
 import org.team401.util.ProfiledPIDControllerLite
 import org.team401.util.TrapezoidProfileLite
-import kotlin.math.tan
-import kotlin.time.milliseconds
 
 object ClimbingSubsystem : Subsystem() {
     //<editor-fold desc="Hardware Devices">
@@ -50,7 +34,7 @@ object ClimbingSubsystem : Subsystem() {
 
 
     private val lockingPiston = Hardware.createPneumaticChannel(
-        PneumaticDevices.climbingLock,
+        PneumaticChannels.climbingLockSolenoid,
         halMock = true
     )
 
@@ -368,9 +352,6 @@ object ClimbingSubsystem : Subsystem() {
         disabled {
             entry {
                 lock()
-            }
-
-            action {
                 leftElevator.gearbox.stop()
                 rightElevator.gearbox.stop()
             }
@@ -378,32 +359,33 @@ object ClimbingSubsystem : Subsystem() {
     }
 
     override fun setup() {
-        leftElevatorController.setTolerance(ClimbingConstants.positionTolerance.toAngularDistance(ClimbingConstants.pitchRadius).value)
-        rightElevatorController.setTolerance(ClimbingConstants.positionTolerance.toAngularDistance(ClimbingConstants.pitchRadius).value)
+        leftElevatorController.setTolerance(Double.POSITIVE_INFINITY)
+        rightElevatorController.setTolerance(Double.POSITIVE_INFINITY)
 
-        leftElevator.gearbox.invertInput(true)
-        leftElevator.gearbox.invert(false)
+        leftElevator.gearbox.invertInput(false)
+        leftElevator.gearbox.invert(true)
 
         rightElevator.gearbox.invertInput(false)
-        rightElevator.gearbox.invert(true)
+        rightElevator.gearbox.invert(false)
 
         useHardware(climbRightElevatorMotor) {
             enableVoltageCompensation(true)
             configVoltageCompSaturation(12.0)
             setNeutralMode(NeutralMode.Brake)
+            configContinuousCurrentLimit(20)
         }
 
         useHardware(climbLeftElevatorMotor) {
             enableVoltageCompensation(true)
             configVoltageCompSaturation(12.0)
             setNeutralMode(NeutralMode.Brake)
+            configContinuousCurrentLimit(20)
         }
 
         resetClimberPosition()
 
         on(Events.ENABLED) {
             homed = true
-            climbingMachine.disable()
             if (!homed) {
                 climbingMachine.setState(ClimbingStates.Homing)
             } else {

@@ -152,11 +152,6 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
         }
     }
 
-    override fun action() {
-        //println("L: ${left.getAngularPosition()}  R: ${right.getAngularPosition()}")
-        //println(driveState.getLatestFieldToVehicle().value)
-    }
-
     //<editor-fold desc="Motor Controller Configuration Functions">
     private fun configForStartup() {
         left.couple()

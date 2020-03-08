@@ -18,6 +18,7 @@ import org.snakeskin.measure.velocity.angular.AngularVelocityMeasureRadiansPerSe
 import org.team401.robot2020.HumanControllers
 import org.team401.robot2020.config.CANDevices
 import org.team401.robot2020.config.DIOChannels
+import org.team401.robot2020.config.PneumaticChannels
 import org.team401.robot2020.config.constants.RobotConstants
 import org.team401.robot2020.config.constants.ShooterConstants
 import org.team401.robot2020.control.VelocityProfiler
@@ -63,7 +64,7 @@ object ShooterSubsystem: Subsystem() {
 
     private val turretRotationGearbox = Gearbox(turretEncoder, turretRotationMotor, ratioToSensor = ShooterConstants.turretRatio)
 
-    private val hoodPiston = Hardware.createPneumaticChannel(0)
+    private val hoodPiston = Hardware.createPneumaticChannel(PneumaticChannels.shooterHoodSolenoid)
     //</editor-fold>
 
     //<editor-fold desc="Models and Controllers">
@@ -113,7 +114,7 @@ object ShooterSubsystem: Subsystem() {
     }
 
     fun isShotReady(): Boolean {
-        return flywheelProfiler.goal > 0.0.RadiansPerSecond && flywheelGearbox.getAngularVelocity().toRevolutionsPerMinute() > flywheelProfiler.goal.toRevolutionsPerMinute() - 20.0.RevolutionsPerMinute
+        return HumanControllers.shotOverrideChannel.read() || (flywheelProfiler.goal > 0.0.RadiansPerSecond && flywheelGearbox.getAngularVelocity().toRevolutionsPerMinute() > flywheelProfiler.goal.toRevolutionsPerMinute() - 20.0.RevolutionsPerMinute)
     }
 
     fun setHoodState(farShot: Boolean) {
@@ -168,6 +169,7 @@ object ShooterSubsystem: Subsystem() {
     enum class FlywheelStates {
         NearShotSpinUp, //Spins up to the near shot speed based on the targeting info
         FarShotSpinUp, //Spins up to the far shot speed based on the targeting info
+        Spit, //Spins up to a slow velocity to barely pop balls out of the shooter
         HoldSetpoint, //Holds the present setpoint.  Must be entered from a spin-up state
         Manual //Flywheel is under manual, OPEN LOOP control
     }
@@ -183,8 +185,10 @@ object ShooterSubsystem: Subsystem() {
             rtAction { timestamp, dt ->
                 val targetingParameters = RobotState.getTargetingParameters(timestamp, ShooterConstants.turretTrackingLookahead)
                 val shotVelocity = (ShooterConstants.flywheelRegression
-                    .predict(targetingParameters.rangeToTarget.value).RadiansPerSecond + flywheelAdjustmentNear + ShooterConstants.flywheelNearConstantCorrection)
+                    .predict(targetingParameters.rangeToTarget.value).RevolutionsPerMinute.toRadiansPerSecond() + flywheelAdjustmentNear + ShooterConstants.flywheelNearConstantCorrection)
                     .coerceAtLeast(ShooterConstants.flywheelMinimumSpeed) //If adjustment is too low, enforce min speed
+
+                //println(targetingParameters.rangeToTarget)
 
                 updateFlywheel(dt, shotVelocity)
             }
@@ -193,11 +197,22 @@ object ShooterSubsystem: Subsystem() {
         state(FlywheelStates.FarShotSpinUp) {
             entry { flywheelProfiler.reset(flywheelGearbox.getAngularVelocity()) }
             
-            rtAction { _, dt ->
+            rtAction { timestamp, dt ->
                 val shotVelocity = (ShooterConstants.flywheelFarShotSpeed + flywheelAdjustmentFar + ShooterConstants.flywheelFarConstantCorrection)
                     .coerceAtLeast(ShooterConstants.flywheelMinimumSpeed)
 
+                val targetingParameters = RobotState.getTargetingParameters(timestamp, ShooterConstants.turretTrackingLookahead)
+
+                //println(targetingParameters.rangeToTarget)
                 updateFlywheel(dt, shotVelocity)
+            }
+        }
+
+        state(FlywheelStates.Spit) {
+            entry { flywheelProfiler.reset(flywheelGearbox.getAngularVelocity()) }
+
+            rtAction { timestamp, dt ->
+                updateFlywheel(dt, 500.0.RevolutionsPerMinute.toRadiansPerSecond())
             }
         }
 
@@ -217,6 +232,12 @@ object ShooterSubsystem: Subsystem() {
         state(FlywheelStates.Manual) {
             action {
                 flywheelGearbox.setPercentOutput(HumanControllers.manualShotPowerChannel.read())
+            }
+        }
+
+        disabled {
+            entry {
+                flywheelGearbox.setPercentOutput(0.0)
             }
         }
     }

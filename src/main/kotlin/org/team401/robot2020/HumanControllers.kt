@@ -5,6 +5,7 @@ import org.snakeskin.hid.channel.AxisChannel
 import org.snakeskin.hid.channel.ButtonChannel
 import org.snakeskin.logic.Direction
 import org.team401.robot2020.control.robot.SuperstructureManager
+import org.team401.robot2020.subsystems.BallSubsystem
 import org.team401.robot2020.subsystems.ClimbingSubsystem
 import org.team401.robot2020.subsystems.ShooterSubsystem
 
@@ -14,6 +15,7 @@ object HumanControllers {
     val driveQuickTurnChannel = ButtonChannel()
     val turretJogChannel = AxisChannel()
     val manualShotPowerChannel = AxisChannel()
+    val shotOverrideChannel = ButtonChannel()
 
     val leftStick = HumanControls.t16000m(0) {
         invertAxis(Axes.Pitch)
@@ -50,6 +52,22 @@ object HumanControllers {
     val gamePad = HumanControls.f310(2) {
         bindAxis(Axes.RightX, turretJogChannel)
         bindAxis(Axes.LeftTrigger, manualShotPowerChannel)
+        bindButton(Buttons.LeftBumper, shotOverrideChannel)
+        whenButton(Buttons.LeftBumper) {
+            pressed {
+                BallSubsystem.flyingVMachine.disable()
+            }
+        }
+
+        whenButton(Buttons.LeftStick) {
+            pressed {
+                SuperstructureManager.spitBalls()
+            }
+
+            released {
+                SuperstructureManager.unwindShooter()
+            }
+        }
 
         //Intake
         whenButton(Buttons.B) {
@@ -64,7 +82,7 @@ object HumanControllers {
         }
 
         whenButton(Buttons.X) {
-            pressed { SuperstructureManager.unwindShooter() }
+            pressed { SuperstructureManager.unwindShooter(); println("UNWIND") }
         }
 
         whenButton(Buttons.A) {
@@ -86,6 +104,16 @@ object HumanControllers {
         //Shooter RPM memory
         whenButton(Buttons.Back) {
             pressed { ShooterSubsystem.resetFlywheelAdjust() }
+        }
+
+        whenButton(Buttons.Start) {
+            pressed {
+                BallSubsystem.towerMachine.setState(BallSubsystem.TowerStates.ManualReverse)
+            }
+
+            released {
+                BallSubsystem.towerMachine.back()
+            }
         }
 
         whenHatChanged(Hats.DPad) {

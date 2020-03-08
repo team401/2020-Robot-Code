@@ -26,32 +26,32 @@ object ShooterConstants {
     )
 
     val turretCameraNearOriginToLens by SelectableValue(
-        Pose2d(-2.625, 0.0, Rotation2d.fromDegrees(-2.0)),
+        Pose2d(-1.5, 0.0, Rotation2d.fromDegrees(0.0)),
         Pose2d()
     )
 
     val turretCameraFarOriginToLens by SelectableValue(
-        Pose2d(),
+        Pose2d(1.25, 0.0, Rotation2d.fromDegrees(0.0)),
         Pose2d()
     )
 
     val turretCameraNearLensHeight by SelectableValue(
-        42.25.Inches,
+        41.5.Inches,
         0.0.Inches
     )
 
     val turretCameraFarLensHeight by SelectableValue(
-        0.0.Inches,
+        42.5.Inches,
         0.0.Inches
     )
 
     val turretCameraNearHorizontalPlaneToLens by SelectableValue(
-        Rotation2d.fromDegrees(28.9),
+        Rotation2d.fromDegrees(29.7),
         Rotation2d.fromDegrees(0.0)
     )
 
     val turretCameraFarHorizontalPlaneToLens by SelectableValue(
-        Rotation2d.fromDegrees(0.0),
+        Rotation2d.fromDegrees(9.12),
         Rotation2d.fromDegrees(0.0)
     )
 

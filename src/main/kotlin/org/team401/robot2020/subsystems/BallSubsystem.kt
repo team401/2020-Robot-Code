@@ -1,18 +1,18 @@
 package org.team401.robot2020.subsystems
 
 import com.ctre.phoenix.motorcontrol.NeutralMode
-import com.ctre.phoenix.motorcontrol.can.VictorSPX
-import com.revrobotics.CANSparkMax
-import org.snakeskin.component.SparkMaxOutputVoltageReadingMode
+import com.ctre.phoenix.motorcontrol.StatorCurrentLimitConfiguration
+import com.ctre.phoenix.motorcontrol.SupplyCurrentLimitConfiguration
 import org.snakeskin.component.impl.*
 import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
 import org.snakeskin.measure.*
-import org.snakeskin.utility.Ticker
 import org.team401.robot2020.config.constants.BallConstants
 import org.team401.robot2020.config.CANDevices
-import org.team401.robot2020.config.PneumaticDevices
-import org.team401.robot2020.config.constants.RobotConstants
+import org.team401.robot2020.config.DIOChannels
+import org.team401.robot2020.config.PneumaticChannels
+import org.team401.robot2020.util.DoublePneumaticChannel
+import org.team401.robot2020.util.inverted
 
 /**
  * Ball handling subsystem, including the intake, flying V, and tower components.
@@ -39,21 +39,26 @@ object BallSubsystem : Subsystem() {
         mockProducer = NullVictorSpxDevice.producer
     )
 
-    private val intakeExtenderPistons = Hardware.createPneumaticChannel(
-        PneumaticDevices.intakeExtenders,
-        mockProducer = NullPneumaticChannel.producer
+    private val intakeDeployPiston = DoublePneumaticChannel(
+        Hardware.createPneumaticChannel(
+            PneumaticChannels.intakeDeploySolenoidForward,
+            halMock = true
+        ),
+        Hardware.createPneumaticChannel(
+            PneumaticChannels.intakeDeploySolenoidReverse,
+            halMock = true
+        )
     )
 
-
-    private val bottomGateSensor = NullDigitalInputChannel.INSTANCE /*Hardware.createDigitalInputChannel(
+    private val bottomGateSensor = Hardware.createDigitalInputChannel(
         DIOChannels.towerBottomGateSensor,
         halMock = true
-    ).inverted() */
+    ).inverted()
 
-    private val topGateSensor = NullDigitalInputChannel.INSTANCE /*Hardware.createDigitalInputChannel(
+    private val topGateSensor = Hardware.createDigitalInputChannel(
         DIOChannels.towerTopGateSensor,
         halMock = true
-    ).inverted() */
+    ).inverted()
     //</editor-fold>
 
     enum class TowerStates {
@@ -154,9 +159,9 @@ object BallSubsystem : Subsystem() {
                     count = 0
                 }
 
-                if (count >= 15) {
+                if (count >= 5) {
                     towerMotor.setPercentOutput(BallConstants.towerShootingPower)
-                    count = 15
+                    count = 5
                 } else {
                     towerMotor.stop()
                 }
@@ -166,6 +171,12 @@ object BallSubsystem : Subsystem() {
         state(TowerStates.ManualReverse) {
             action {
                 towerMotor.setPercentOutput(BallConstants.towerManualReversePower)
+            }
+        }
+
+        disabled {
+            entry {
+                towerMotor.stop()
             }
         }
     }
@@ -180,8 +191,8 @@ object BallSubsystem : Subsystem() {
 
         state(FlyingVStates.Shooting) {
             action {
-                flyingVMotorLeft.setPercentOutput(BallConstants.flyingVShootingPower)
-                flyingVMotorRight.setPercentOutput(BallConstants.flyingVShootingPower)
+                flyingVMotorLeft.setPercentOutput(BallConstants.flyingVLeftIntakingPower)
+                flyingVMotorRight.setPercentOutput(BallConstants.flyingVRightIntakingPower)
             }
         }
 
@@ -201,7 +212,7 @@ object BallSubsystem : Subsystem() {
         }
 
         disabled {
-            action {
+            entry {
                 flyingVMotorLeft.stop()
                 flyingVMotorRight.stop()
             }
@@ -211,7 +222,7 @@ object BallSubsystem : Subsystem() {
     val intakeMachine: StateMachine<IntakeStates> = stateMachine {
         state(IntakeStates.Stowed) {
             entry {
-                intakeExtenderPistons.setState(false)
+                intakeDeployPiston.setState(false)
             }
 
             action {
@@ -221,7 +232,7 @@ object BallSubsystem : Subsystem() {
 
         state(IntakeStates.Intake) {
             entry {
-                intakeExtenderPistons.setState(true)
+                intakeDeployPiston.setState(true)
             }
 
             action {
@@ -231,7 +242,7 @@ object BallSubsystem : Subsystem() {
 
         disabled {
             entry {
-                intakeExtenderPistons.setState(false)
+                intakeDeployPiston.setState(false)
                 intakeWheelsMotor.stop()
             }
         }
@@ -253,9 +264,8 @@ object BallSubsystem : Subsystem() {
 
         useHardware(towerMotor) {
             setNeutralMode(NeutralMode.Brake)
+            configSupplyCurrentLimit(SupplyCurrentLimitConfiguration(true, 20.0, 0.0, 0.0), 1000)
         }
-
-        intakeExtenderPistons.setState(false)
 
         on (Events.TELEOP_ENABLED) {
             towerMachine.setState(TowerStates.Waiting)
