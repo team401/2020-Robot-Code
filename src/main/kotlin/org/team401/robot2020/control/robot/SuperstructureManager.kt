@@ -65,13 +65,12 @@ object SuperstructureManager {
         ShooterSubsystem.turretMachine.setState(ShooterSubsystem.TurretStates.LockToZero)
         ShooterSubsystem.setHoodState(false)
         BallSubsystem.towerMachine.setState(BallSubsystem.TowerStates.Shooting)
-        BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Shooting)
+        //BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Shooting)
     }
 
     @Synchronized fun startFiring() {
         if (isLocked) {
             BallSubsystem.towerMachine.setState(BallSubsystem.TowerStates.Shooting)
-            BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Shooting)
             BallSubsystem.intakeMachine.setState(BallSubsystem.IntakeStates.Intake)
             isShooting = true
         }
@@ -80,7 +79,6 @@ object SuperstructureManager {
     @Synchronized fun stopFiring() {
         if (isShooting) {
             BallSubsystem.towerMachine.setState(BallSubsystem.TowerStates.Waiting)
-            BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Idle)
             BallSubsystem.intakeMachine.setState(BallSubsystem.IntakeStates.Stowed)
             isShooting = false
         }
@@ -88,12 +86,12 @@ object SuperstructureManager {
 
     @Synchronized fun startIntaking() {
         BallSubsystem.intakeMachine.setState(BallSubsystem.IntakeStates.Intake)
-        BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Intaking)
+        BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Feeding)
     }
 
     @Synchronized fun stopIntaking() {
         BallSubsystem.intakeMachine.setState(BallSubsystem.IntakeStates.Stowed)
-        BallSubsystem.flyingVMachine.setState(BallSubsystem.FlyingVStates.Idle)
+        BallSubsystem.flyingVMachine.disable()
     }
 
     @Synchronized fun startClimb() {

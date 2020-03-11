@@ -7,6 +7,7 @@ import org.snakeskin.component.impl.*
 import org.snakeskin.dsl.*
 import org.snakeskin.event.Events
 import org.snakeskin.measure.*
+import org.snakeskin.utility.Ticker
 import org.team401.robot2020.config.constants.BallConstants
 import org.team401.robot2020.config.CANDevices
 import org.team401.robot2020.config.DIOChannels
@@ -19,14 +20,14 @@ import org.team401.robot2020.util.inverted
  */
 object BallSubsystem : Subsystem() {
     //<editor-fold desc="Hardware Devices">
-    private val flyingVMotorLeft = Hardware.createVictorSPX(
+    private val flyingVMotorLeft = Hardware.createTalonSRX(
         CANDevices.flyingVMotorLeft.canID,
-        mockProducer = NullVictorSpxDevice.producer
+        mockProducer = NullTalonSrxDevice.producer
     )
 
-    private val flyingVMotorRight = Hardware.createVictorSPX(
+    private val flyingVMotorRight = Hardware.createTalonSRX(
         CANDevices.flyingVMotorRight.canID,
-        mockProducer = NullVictorSpxDevice.producer
+        mockProducer = NullTalonSrxDevice.producer
     )
 
     private val towerMotor = Hardware.createTalonFX(
@@ -72,10 +73,8 @@ object BallSubsystem : Subsystem() {
     }
 
     enum class FlyingVStates {
-        Intaking, //State of the V when the robot is intaking
-        Shooting, //State of the V when the robot is shooting
-        Idle, //State of the V when the robot has stopped intaking.  Checks for tower feed over a timeout
-        ManualReverse //Manually reverse the V
+        Feeding,
+        Jammed
     }
 
     enum class IntakeStates {
@@ -109,7 +108,7 @@ object BallSubsystem : Subsystem() {
                 when {
                     (topState && bottomState) -> setState(TowerStates.Full) //Both gates triggered, tower is full
                     (topState) -> setState(TowerStates.Reversing) //Spacing is somehow off and a new ball is being entered
-                    (!bottomState) -> setState(TowerStates.Waiting) //New ball has entered the system
+                    (!bottomState) -> setState(TowerStates.Spacing) //New ball has entered the system
                 }
             }
         }
@@ -123,6 +122,8 @@ object BallSubsystem : Subsystem() {
         }
 
         state(TowerStates.Reversing) {
+            timeout(5.0.Seconds, TowerStates.Waiting)
+
             action {
                 towerMotor.setPercentOutput(BallConstants.towerReversingPower)
 
@@ -159,9 +160,9 @@ object BallSubsystem : Subsystem() {
                     count = 0
                 }
 
-                if (count >= 5) {
+                if (count >= 10) {
                     towerMotor.setPercentOutput(BallConstants.towerShootingPower)
-                    count = 5
+                    count = 10
                 } else {
                     towerMotor.stop()
                 }
@@ -182,32 +183,31 @@ object BallSubsystem : Subsystem() {
     }
 
     val flyingVMachine: StateMachine<FlyingVStates> = stateMachine {
-        state(FlyingVStates.Intaking) {
+        state(FlyingVStates.Feeding) {
+            val currentTicker = Ticker({
+                flyingVMotorLeft.getOutputCurrent() >= 15.0 || flyingVMotorRight.getOutputCurrent() >= 15.0
+            }, 1.0.Seconds, 0.02.Seconds)
+
+            entry {
+                currentTicker.reset()
+            }
+
             action {
                 flyingVMotorLeft.setPercentOutput(BallConstants.flyingVLeftIntakingPower)
                 flyingVMotorRight.setPercentOutput(BallConstants.flyingVRightIntakingPower)
+
+                currentTicker.check {
+                    setState(FlyingVStates.Jammed)
+                }
             }
         }
 
-        state(FlyingVStates.Shooting) {
-            action {
-                flyingVMotorLeft.setPercentOutput(BallConstants.flyingVLeftIntakingPower)
-                flyingVMotorRight.setPercentOutput(BallConstants.flyingVRightIntakingPower)
-            }
-        }
+        state(FlyingVStates.Jammed) {
+            timeout(0.5.Seconds, FlyingVStates.Feeding)
 
-        state(FlyingVStates.Idle) {
-            tickedAction(BallConstants.flyingVIdleTimeout, {
-                flyingVMotorLeft.setPercentOutput(BallConstants.flyingVLeftIntakingPower)
-                flyingVMotorRight.setPercentOutput(BallConstants.flyingVRightIntakingPower)
-                towerMachine.isInState(TowerStates.Waiting)
-            }, { disable() })
-        }
-
-        state(FlyingVStates.ManualReverse) {
             action {
-                flyingVMotorLeft.setPercentOutput(BallConstants.flyingVReversingPower)
-                flyingVMotorRight.setPercentOutput(BallConstants.flyingVReversingPower)
+                flyingVMotorLeft.setPercentOutput(-BallConstants.flyingVLeftIntakingPower)
+                flyingVMotorRight.setPercentOutput(-BallConstants.flyingVRightIntakingPower)
             }
         }
 
@@ -250,21 +250,23 @@ object BallSubsystem : Subsystem() {
 
     override fun setup() {
         towerMotor.invert(true)
-        flyingVMotorLeft.invert(true)
-        flyingVMotorRight.invert(false)
+        flyingVMotorLeft.invert(false)
+        flyingVMotorRight.invert(true)
         towerMotor.invert(false)
 
         useHardware(flyingVMotorLeft) {
             setNeutralMode(NeutralMode.Brake)
+            configContinuousCurrentLimit(20)
         }
 
         useHardware(flyingVMotorRight) {
             setNeutralMode(NeutralMode.Brake)
+            configContinuousCurrentLimit(20)
         }
 
         useHardware(towerMotor) {
             setNeutralMode(NeutralMode.Brake)
-            configSupplyCurrentLimit(SupplyCurrentLimitConfiguration(true, 20.0, 0.0, 0.0), 1000)
+            configSupplyCurrentLimit(SupplyCurrentLimitConfiguration(false, 40.0, 0.0, 0.0), 1000)
         }
 
         on (Events.TELEOP_ENABLED) {

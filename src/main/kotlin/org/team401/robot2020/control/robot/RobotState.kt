@@ -1,5 +1,6 @@
 package org.team401.robot2020.control.robot
 
+import org.snakeskin.dsl.readTimestamp
 import org.snakeskin.measure.Inches
 import org.snakeskin.measure.RadiansPerSecond
 import org.snakeskin.measure.Seconds
@@ -37,6 +38,10 @@ object RobotState: DifferentialDriveState(100, DrivetrainSubsystem.model.driveKi
     var fieldToTargetLock = FieldToTargetLock(0.0.Seconds, Pose2d.identity())
         @Synchronized get
         private set
+
+    @Synchronized fun resetVision() {
+        fieldToTargetLock = FieldToTargetLock(readTimestamp(), getLatestFieldToVehicle().value.transformBy(Pose2d(-50.0, 0.0, Rotation2d.identity())))
+    }
 
     init {
         vehicleToTurret[InterpolatingDouble(0.0)] = Pose2d(ShooterConstants.robotToTurret, Rotation2d.identity())

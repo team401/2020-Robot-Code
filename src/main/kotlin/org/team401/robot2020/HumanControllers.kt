@@ -4,6 +4,7 @@ import org.snakeskin.dsl.*
 import org.snakeskin.hid.channel.AxisChannel
 import org.snakeskin.hid.channel.ButtonChannel
 import org.snakeskin.logic.Direction
+import org.team401.robot2020.control.robot.RobotState
 import org.team401.robot2020.control.robot.SuperstructureManager
 import org.team401.robot2020.subsystems.BallSubsystem
 import org.team401.robot2020.subsystems.ClimbingSubsystem
@@ -55,10 +56,11 @@ object HumanControllers {
         bindButton(Buttons.LeftBumper, shotOverrideChannel)
         whenButton(Buttons.LeftBumper) {
             pressed {
-                BallSubsystem.flyingVMachine.disable()
+                BallSubsystem.towerMachine.setState(BallSubsystem.TowerStates.Spacing)
             }
         }
 
+        /*
         whenButton(Buttons.LeftStick) {
             pressed {
                 SuperstructureManager.spitBalls()
@@ -68,6 +70,8 @@ object HumanControllers {
                 SuperstructureManager.unwindShooter()
             }
         }
+
+         */
 
         //Intake
         whenButton(Buttons.B) {
@@ -103,16 +107,21 @@ object HumanControllers {
 
         //Shooter RPM memory
         whenButton(Buttons.Back) {
-            pressed { ShooterSubsystem.resetFlywheelAdjust() }
+            pressed {
+                ShooterSubsystem.resetFlywheelAdjust()
+                RobotState.resetVision()
+            }
         }
 
         whenButton(Buttons.Start) {
             pressed {
                 BallSubsystem.towerMachine.setState(BallSubsystem.TowerStates.ManualReverse)
+                ShooterSubsystem.kickerMachine.setState(ShooterSubsystem.KickerStates.Reverse)
             }
 
             released {
                 BallSubsystem.towerMachine.back()
+                ShooterSubsystem.kickerMachine.disable()
             }
         }
 

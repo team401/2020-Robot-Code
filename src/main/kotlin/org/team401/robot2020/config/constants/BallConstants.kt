@@ -8,18 +8,15 @@ import org.snakeskin.utility.value.SelectableDouble
 object BallConstants {
     val towerFeedingRate = 5000.0.RevolutionsPerMinute
 
-    val towerSpacingPower = .1
+    val towerSpacingPower = .25
     val towerReversingPower = -.5
-    val towerFeedingPower = 0.5
+    val towerFeedingPower = 0.4
     val towerSpacingTime = .02.Seconds
-    val towerShootingPower = 0.75
-    val towerManualReversePower = -.75
+    val towerShootingPower = .8
+    val towerManualReversePower = -1.0
 
     val flyingVLeftIntakingPower = 1.0
     val flyingVRightIntakingPower = .75
-    val flyingVShootingPower = 1.0
-    val flyingVReversingPower = -1.0
-    val flyingVIdlePower = 1.0
 
     val flyingVIdleTimeout = 3.0.Seconds
 }

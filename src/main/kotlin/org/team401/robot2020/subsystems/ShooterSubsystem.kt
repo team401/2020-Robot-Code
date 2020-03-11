@@ -175,7 +175,8 @@ object ShooterSubsystem: Subsystem() {
     }
 
     enum class KickerStates {
-        Kick
+        Kick,
+        Reverse
     }
 
     val flywheelMachine: StateMachine<FlywheelStates> = stateMachine {
@@ -246,6 +247,12 @@ object ShooterSubsystem: Subsystem() {
         state(KickerStates.Kick) {
             action {
                 kickerMotor.setPercentOutput(1.0)
+            }
+        }
+
+        state(KickerStates.Reverse) {
+            action {
+                kickerMotor.setPercentOutput(-1.0)
             }
         }
 

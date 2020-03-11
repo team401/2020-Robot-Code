@@ -94,7 +94,7 @@ object ShooterConstants {
 
     val flywheelNearConstantCorrection = 0.0.RevolutionsPerMinute.toRadiansPerSecond()
     val flywheelFarConstantCorrection = 0.0.RevolutionsPerMinute.toRadiansPerSecond()
-    val flywheelFarShotSpeed = (9500.0.RevolutionsPerMinute).toRadiansPerSecond()
+    val flywheelFarShotSpeed = (9750.0.RevolutionsPerMinute).toRadiansPerSecond()
     val flywheelMinimumSpeed = (1000.0.RevolutionsPerMinute).toRadiansPerSecond() //Min speed to allow manual adjustment to reach
 
     //Rate to bump the flywheel speed up or down by

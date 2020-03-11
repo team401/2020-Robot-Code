@@ -165,7 +165,7 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
             idleMode = CANSparkMax.IdleMode.kBrake
             openLoopRampRate = 0.0
             enableVoltageCompensation(12.0)
-
+            setSmartCurrentLimit(40)
         }
         useHardware(leftSlave) {
             idleMode = CANSparkMax.IdleMode.kBrake
@@ -176,6 +176,7 @@ object DrivetrainSubsystem : Subsystem(), IModeledDifferentialDrivetrain {
             idleMode = CANSparkMax.IdleMode.kBrake
             openLoopRampRate = 0.0
             enableVoltageCompensation(12.0)
+            setSmartCurrentLimit(40)
         }
 
         useHardware(rightSlave) {

@@ -16,10 +16,10 @@ class DriveTrajectoryStep(referenceTrajectory: Trajectory<TimedState<Pose2dWithC
         if (reconfigurePose) { //If we're supposed to reconfigure the pose
             val startPose = trajectory.state.state().pose //Grab the initial pose
             DrivetrainSubsystem.setPose(startPose, currentTime) //Reconfigure the drive
-            DrivetrainSubsystem.pathManager.reset() //Reset the path manager
-            DrivetrainSubsystem.pathManager.setTrajectory(trajectory) //Load in the path
-            DrivetrainSubsystem.driveMachine.setState(DrivetrainSubsystem.DriveStates.TrajectoryFollowing).waitFor()
         }
+        DrivetrainSubsystem.pathManager.reset() //Reset the path manager
+        DrivetrainSubsystem.pathManager.setTrajectory(trajectory) //Load in the path
+        DrivetrainSubsystem.driveMachine.setState(DrivetrainSubsystem.DriveStates.TrajectoryFollowing).waitFor()
     }
 
     override fun action(currentTime: TimeMeasureSeconds, lastTime: TimeMeasureSeconds): Boolean {
